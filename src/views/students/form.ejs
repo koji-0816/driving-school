@@ -1,0 +1,145 @@
+<%- include('../partials/layout-start', { title: student ? student.name + ' の編集' : '生徒登録', current: 'students' }) %>
+
+<a href="<%= student ? '/students/' + student.id : '/students' %>" class="text-muted" style="font-size:13px">← 戻る</a>
+
+<div class="card mt-4" style="max-width:720px">
+  <div class="card-header"><%= student ? '生徒情報の編集' : '新規生徒登録' %></div>
+  <div class="card-body">
+
+    <% if(error) { %>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">
+      ⚠️ <%= error %>
+    </div>
+    <% } %>
+
+    <form method="post" action="<%= student ? '/students/' + student.id + '/edit' : '/students' %>">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">氏名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="name" value="<%= student ? student.name : '' %>" required
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">フリガナ <span style="color:#dc2626">*</span></label>
+          <input type="text" name="kana" value="<%= student ? student.kana : '' %>" required
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">電話番号</label>
+          <input type="text" name="phone" value="<%= student ? student.phone || '' : '' %>"
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">メールアドレス</label>
+          <input type="email" name="email" value="<%= student ? student.email || '' : '' %>"
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">取得車種</label>
+          <select name="license_type" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <% ['普通車','二輪','大型'].forEach(t => { %>
+              <option value="<%= t %>" <%= student && student.license_type === t ? 'selected' : '' %>><%= t %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">区分</label>
+          <select name="student_type" id="student_type" onchange="toggleFields()"
+                  style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <option value="合宿" <%= !student || student.student_type === '合宿' ? 'selected' : '' %>>合宿</option>
+            <option value="通学" <%= student && student.student_type === '通学' ? 'selected' : '' %>>通学</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">入校日 <span style="color:#dc2626">*</span></label>
+          <input type="date" name="enrollment_date" value="<%= student ? student.enrollment_date : '' %>" required
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">ステータス</label>
+          <select name="status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <% ['在校','卒業','退校'].forEach(s => { %>
+              <option value="<%= s %>" <%= student && student.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <!-- 合宿のみ -->
+      <div id="section-gasshuku" style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">合宿生の情報</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">卒業予定日</label>
+            <input type="date" name="expected_graduation" value="<%= student ? student.expected_graduation || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">宿泊施設</label>
+            <select name="accommodation_id" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+              <option value="">なし</option>
+              <% for(const a of accommodations) { %>
+                <option value="<%= a.id %>" <%= student && student.accommodation_id == a.id ? 'selected' : '' %>><%= a.name %></option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">部屋番号</label>
+            <input type="text" name="room_number" value="<%= student ? student.room_number || '' : '' %>"
+                   placeholder="例: 101"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+        </div>
+      </div>
+
+      <!-- 通学のみ -->
+      <div id="section-tsuugaku" style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">期限管理（通学生）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">最初の教習日</label>
+            <input type="date" name="lesson_start_date" value="<%= student ? student.lesson_start_date || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <div class="text-muted" style="margin-top:3px">教習期限（9ヶ月）の起算日</div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">仮免取得日</label>
+            <input type="date" name="provisional_license_date" value="<%= student ? student.provisional_license_date || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <div class="text-muted" style="margin-top:3px">仮免期限（6ヶ月）の起算日</div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">第二段階修了日</label>
+            <input type="date" name="stage2_complete_date" value="<%= student ? student.stage2_complete_date || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <div class="text-muted" style="margin-top:3px">卒検期限（3ヶ月）の起算日</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #f0f2f5;padding-top:16px">
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">備考</label>
+        <textarea name="note" rows="3"
+                  style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;resize:vertical"><%= student ? student.note || '' : '' %></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button type="submit" class="btn btn-primary"><%= student ? '更新する' : '登録する' %></button>
+        <a href="<%= student ? '/students/' + student.id : '/students' %>" class="btn btn-secondary">キャンセル</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleFields() {
+  const type = document.getElementById('student_type').value;
+  document.getElementById('section-gasshuku').style.display = type === '合宿' ? '' : 'none';
+  document.getElementById('section-tsuugaku').style.display = type === '通学' ? '' : 'none';
+}
+toggleFields();
+</script>
+
+<%- include('../partials/layout-end') %>

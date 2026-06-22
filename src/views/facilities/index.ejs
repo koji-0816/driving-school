@@ -1,0 +1,45 @@
+<%- include('../partials/layout-start', { title: '設備管理', current: 'facilities' }) %>
+
+<div class="card">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+    設備一覧
+    <a href="/facilities/new" class="btn btn-primary" style="font-size:12px;padding:5px 14px">＋ 設備登録</a>
+  </div>
+  <div class="card-body">
+    <form method="get" class="filter-bar" style="margin-bottom:16px">
+      <select name="category">
+        <option value="">すべてのカテゴリ</option>
+        <% for(const c of categories) { %>
+          <option value="<%= c.category %>" <%= category === c.category ? 'selected' : '' %>><%= c.category %></option>
+        <% } %>
+      </select>
+      <button type="submit" class="btn btn-secondary">絞込</button>
+      <% if(category) { %><a href="/facilities" class="btn btn-secondary">リセット</a><% } %>
+    </form>
+
+    <table>
+      <tr><th>設備名</th><th>カテゴリ</th><th>対象車種</th><th>定員</th><th>ステータス</th><th>備考</th><th></th></tr>
+      <% for(const f of facilities) { %>
+      <tr>
+        <td><%= f.name %></td>
+        <td>
+          <span class="badge <%= f.category === '車両' ? 'badge-blue' : f.category === '教室' ? 'badge-green' : f.category === 'シミュレーター' ? 'badge-purple' : 'badge-gray' %>">
+            <%= f.category %>
+          </span>
+        </td>
+        <td><%= f.license_type || '—' %></td>
+        <td><%= f.capacity %> 名</td>
+        <td>
+          <span class="badge <%= f.status === '使用可' ? 'badge-green' : f.status === '点検中' ? 'badge-orange' : 'badge-gray' %>">
+            <%= f.status %>
+          </span>
+        </td>
+        <td class="text-muted"><%= f.note || '—' %></td>
+        <td><a href="/facilities/<%= f.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">編集</a></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

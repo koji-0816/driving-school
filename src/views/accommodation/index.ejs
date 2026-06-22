@@ -1,0 +1,57 @@
+<%- include('../partials/layout-start', { title: '宿泊管理', current: 'accommodation' }) %>
+
+<div class="grid-2 mb-4">
+  <% for(const a of accommodations) { %>
+  <div class="kpi">
+    <div class="kpi-value <%= (occupancyMap[a.id]||0) / a.total_rooms > 0.8 ? 'orange' : 'blue' %>">
+      <%= occupancyMap[a.id] || 0 %>/<%= a.total_rooms %>
+    </div>
+    <div class="kpi-label"><%= a.name %> 使用率
+      (<%= a.total_rooms > 0 ? Math.round((occupancyMap[a.id]||0)/a.total_rooms*100) : 0 %>%)
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+    施設一覧
+    <a href="/accommodation/new" class="btn btn-primary" style="font-size:12px;padding:5px 14px">＋ 施設登録</a>
+  </div>
+  <div class="card-body">
+    <table>
+      <tr><th>施設名</th><th>総部屋数</th><th>使用中</th><th>ステータス</th><th>備考</th><th></th></tr>
+      <% for(const a of accommodations) { %>
+      <tr>
+        <td><%= a.name %></td>
+        <td><%= a.total_rooms %> 室</td>
+        <td><%= occupancyMap[a.id] || 0 %> 室</td>
+        <td><span class="badge <%= a.status === '使用可' ? 'badge-green' : 'badge-gray' %>"><%= a.status %></span></td>
+        <td class="text-muted"><%= a.note || '—' %></td>
+        <td><a href="/accommodation/<%= a.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">編集</a></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">在室者一覧（在校生）</div>
+  <div class="card-body">
+    <table>
+      <tr><th>施設</th><th>部屋</th><th>生徒</th><th>車種</th><th>入校日</th><th>卒業予定</th></tr>
+      <% for(const r of residents) { %>
+      <tr>
+        <td><%= r.accommodation_name %></td>
+        <td><%= r.room_number %>号室</td>
+        <td><a href="/students/<%= r.id %>"><%= r.name %></a></td>
+        <td><span class="badge badge-blue"><%= r.license_type %></span></td>
+        <td><%= r.enrollment_date %></td>
+        <td><%= r.expected_graduation || '—' %></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

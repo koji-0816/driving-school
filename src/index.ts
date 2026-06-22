@@ -10,6 +10,7 @@ import examsRouter from './routes/exams';
 import accommodationRouter from './routes/accommodation';
 import reservationsRouter from './routes/reservations';
 import helpRouter from './routes/help';
+import facilitiesRouter from './routes/facilities';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
@@ -31,6 +32,7 @@ app.use('/schedule', scheduleRouter);
 app.use('/exams', examsRouter);
 app.use('/accommodation', accommodationRouter);
 app.use('/reservations', reservationsRouter);
+app.use('/facilities', facilitiesRouter);
 app.use('/help', helpRouter);
 
 app.listen(PORT, () => {
