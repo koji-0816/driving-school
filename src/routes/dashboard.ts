@@ -12,7 +12,8 @@ router.get('/', (req: Request, res: Response) => {
   `).all() as { status: string; c: number }[];
 
   const vehicleStats = db.prepare(`
-    SELECT license_type, status, COUNT(*) as c FROM vehicles GROUP BY license_type, status
+    SELECT license_type, status, COUNT(*) as c FROM facilities
+    WHERE category = '車両' GROUP BY license_type, status
   `).all() as { license_type: string; status: string; c: number }[];
 
   const todayLessons = db.prepare(`
