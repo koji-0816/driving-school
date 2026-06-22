@@ -1,0 +1,116 @@
+<%- include('../partials/layout-start', { title: '教習枠管理（事務）', current: 'reservations' }) %>
+
+<div class="card mb-4">
+  <div class="card-header">枠を追加する</div>
+  <div class="card-body">
+    <form method="post" action="/reservations/admin/slots" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">日付</div>
+        <input type="date" name="slot_date" value="<%= date %>" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">開始</div>
+        <select name="start_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <% ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].forEach(t => { %>
+            <option value="<%= t %>"><%= t %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">終了</div>
+        <select name="end_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <% ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].forEach(t => { %>
+            <option value="<%= t %>"><%= t %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">教官</div>
+        <select name="instructor_id" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <% for(const i of instructors) { %>
+            <option value="<%= i.id %>"><%= i.name %></option>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">車両</div>
+        <select name="vehicle_id" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <option value="">（学科・なし）</option>
+          <% for(const v of vehicles) { %>
+            <option value="<%= v.id %>"><%= v.vehicle_no %></option>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">種別</div>
+        <select name="lesson_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <option value="技能">技能</option>
+          <option value="学科">学科</option>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">車種</div>
+        <select name="license_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+          <option value="普通車">普通車</option>
+          <option value="二輪">二輪</option>
+          <option value="大型">大型</option>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">定員</div>
+        <input type="number" name="max_students" value="1" min="1" max="30"
+               style="width:60px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+      </div>
+      <button type="submit" class="btn btn-primary">追加</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header" style="display:flex;align-items:center;gap:16px">
+    教習枠一覧
+    <form method="get" style="display:flex;gap:8px;margin:0">
+      <input type="date" name="date" value="<%= date %>" style="padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+      <button type="submit" class="btn btn-secondary">表示</button>
+    </form>
+  </div>
+  <div class="card-body">
+    <% if(slots.length === 0) { %>
+      <p class="text-muted">この日の枠はありません</p>
+    <% } else { %>
+    <table>
+      <tr>
+        <th>時限</th><th>教官</th><th>車両</th><th>種別</th><th>車種</th>
+        <th>予約数/定員</th><th>状態</th><th></th>
+      </tr>
+      <% for(const s of slots) { %>
+      <tr>
+        <td style="white-space:nowrap"><%= s.start_time %>〜<%= s.end_time %></td>
+        <td><%= s.instructor_name %></td>
+        <td><%= s.vehicle_no || '—' %></td>
+        <td><%= s.lesson_type %></td>
+        <td><span class="badge badge-blue"><%= s.license_type %></span></td>
+        <td>
+          <span class="<%= s.reserved_count >= s.max_students ? 'badge badge-red' : 'badge badge-green' %>">
+            <%= s.reserved_count %>/<%= s.max_students %>
+          </span>
+        </td>
+        <td>
+          <span class="badge <%= s.status === '受付中' ? 'badge-green' : 'badge-gray' %>">
+            <%= s.status %>
+          </span>
+        </td>
+        <td>
+          <form method="post" action="/reservations/admin/slots/<%= s.id %>/delete"
+                onsubmit="return confirm('この枠を削除しますか？予約も削除されます。')">
+            <button type="submit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">削除</button>
+          </form>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

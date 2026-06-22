@@ -1,0 +1,112 @@
+<%- include('partials/layout-start', { title: 'ダッシュボード', current: 'dashboard' }) %>
+
+<div class="grid-4 mb-4">
+  <div class="kpi blue">
+    <div class="kpi-value"><%= studentMap['在校'] || 0 %></div>
+    <div class="kpi-label">在校生数</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-value"><%= studentMap['卒業'] || 0 %></div>
+    <div class="kpi-label">今月卒業</div>
+  </div>
+  <div class="kpi orange">
+    <div class="kpi-value"><%= instructorMap['在籍'] || 0 %></div>
+    <div class="kpi-label">稼働教官数</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-value"><%= upcomingExams.length %></div>
+    <div class="kpi-label">検定予定（近日）</div>
+  </div>
+</div>
+
+<div class="grid-2">
+
+  <div class="card">
+    <div class="card-header">本日の教習状況（<%= today %>）</div>
+    <div class="card-body">
+      <% const todayMap = {}; for(const r of todayLessons) { todayMap[r.lesson_type + '_' + r.status] = r.c; } %>
+      <table>
+        <tr><th>種別</th><th>予定</th><th>完了</th><th>欠席</th></tr>
+        <tr>
+          <td>技能</td>
+          <td><%= todayMap['技能_予定'] || 0 %></td>
+          <td><%= todayMap['技能_完了'] || 0 %></td>
+          <td><%= todayMap['技能_欠席'] || 0 %></td>
+        </tr>
+        <tr>
+          <td>学科</td>
+          <td><%= todayMap['学科_予定'] || 0 %></td>
+          <td><%= todayMap['学科_完了'] || 0 %></td>
+          <td><%= todayMap['学科_欠席'] || 0 %></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">車両稼働状況</div>
+    <div class="card-body">
+      <%
+        const vMap = {};
+        for(const v of vehicleStats) {
+          if(!vMap[v.license_type]) vMap[v.license_type] = { total: 0, active: 0 };
+          vMap[v.license_type].total += v.c;
+          if(v.status === '稼働中') vMap[v.license_type].active += v.c;
+        }
+      %>
+      <% for(const [lt, stat] of Object.entries(vMap)) { %>
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span><%= lt %></span>
+            <span class="text-muted"><%= stat.active %>/<%= stat.total %> 台稼働中</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:<%= stat.total > 0 ? Math.round(stat.active/stat.total*100) : 0 %>%"></div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">宿泊施設稼働状況</div>
+    <div class="card-body">
+      <% for(const a of accommodationStats) { %>
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span><%= a.name %></span>
+            <span class="text-muted"><%= a.occupied %>/<%= a.total_rooms %> 室使用中</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill <%= a.occupied/a.total_rooms > 0.8 ? 'orange' : 'green' %>"
+                 style="width:<%= a.total_rooms > 0 ? Math.round(a.occupied/a.total_rooms*100) : 0 %>%"></div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">近日の検定予定</div>
+    <div class="card-body">
+      <% if(upcomingExams.length === 0) { %>
+        <p class="text-muted">近日の検定予定はありません</p>
+      <% } else { %>
+        <table>
+          <tr><th>日付</th><th>生徒</th><th>種別</th><th>検定員</th></tr>
+          <% for(const e of upcomingExams) { %>
+          <tr>
+            <td><%= e.exam_date %></td>
+            <td><a href="/students/<%= e.student_id %>"><%= e.student_name %></a></td>
+            <td><span class="badge badge-purple"><%= e.exam_type %></span></td>
+            <td><%= e.examiner_name %></td>
+          </tr>
+          <% } %>
+        </table>
+      <% } %>
+    </div>
+  </div>
+
+</div>
+
+<%- include('partials/layout-end') %>

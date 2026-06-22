@@ -1,0 +1,46 @@
+<%- include('../partials/layout-start', { title: '予約一覧（' + student.name + '）', current: 'reservations' }) %>
+
+<a href="/students/<%= student.id %>" class="text-muted" style="font-size:13px">← 生徒詳細に戻る</a>
+
+<div class="card mt-4">
+  <div class="card-header">
+    <%= student.name %> の予約一覧
+    <a href="/reservations/book/<%= student.id %>" class="btn btn-primary" style="float:right;font-size:12px;padding:4px 12px">新規予約</a>
+  </div>
+  <div class="card-body">
+    <% if(reservations.length === 0) { %>
+      <p class="text-muted">予約がありません</p>
+    <% } else { %>
+    <table>
+      <tr><th>日付</th><th>時限</th><th>種別</th><th>段階</th><th>教官</th><th>車両</th><th>状態</th><th></th></tr>
+      <% for(const r of reservations) { %>
+      <tr>
+        <td><%= r.slot_date %></td>
+        <td style="white-space:nowrap"><%= r.start_time %>〜<%= r.end_time %></td>
+        <td><%= r.lesson_type %></td>
+        <td><span class="badge badge-gray"><%= r.stage %></span></td>
+        <td><%= r.instructor_name %></td>
+        <td><%= r.vehicle_no || '—' %></td>
+        <td>
+          <span class="badge <%= r.status === '予約済' ? 'badge-blue' : r.status === '完了' ? 'badge-green' : 'badge-gray' %>">
+            <%= r.status %>
+          </span>
+        </td>
+        <td>
+          <% if(r.status === '予約済' && r.slot_date >= today) { %>
+          <form method="post" action="/reservations/cancel/<%= r.id %>"
+                onsubmit="return confirm('この予約をキャンセルしますか？')">
+            <input type="hidden" name="student_id" value="<%= student.id %>">
+            <input type="hidden" name="date" value="<%= r.slot_date %>">
+            <button type="submit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">キャンセル</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

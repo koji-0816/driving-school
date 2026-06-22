@@ -1,0 +1,44 @@
+<%- include('partials/layout-start', { title: '検定管理', current: 'exams' }) %>
+
+<div class="grid-3 mb-4">
+  <div class="kpi green">
+    <div class="kpi-value"><%= statMap['合格'] || 0 %></div>
+    <div class="kpi-label">合格</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-value"><%= statMap['不合格'] || 0 %></div>
+    <div class="kpi-label">不合格</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-value"><%= statMap['未実施'] || 0 %></div>
+    <div class="kpi-label">予定（未実施）</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">検定一覧</div>
+  <div class="card-body">
+    <table>
+      <tr>
+        <th>日付</th><th>生徒</th><th>車種</th><th>検定種別</th><th>結果</th><th>点数</th><th>検定員</th>
+      </tr>
+      <% for(const e of exams) { %>
+      <tr>
+        <td><%= e.exam_date %></td>
+        <td><a href="/students/<%= e.student_id %>"><%= e.student_name %></a></td>
+        <td><span class="badge badge-blue"><%= e.student_license %></span></td>
+        <td><span class="badge badge-purple"><%= e.exam_type %></span></td>
+        <td>
+          <span class="badge <%= e.result === '合格' ? 'badge-green' : e.result === '不合格' ? 'badge-red' : 'badge-gray' %>">
+            <%= e.result %>
+          </span>
+        </td>
+        <td><%= e.score !== null ? e.score + '点' : '—' %></td>
+        <td><%= e.examiner_name %></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('partials/layout-end') %>

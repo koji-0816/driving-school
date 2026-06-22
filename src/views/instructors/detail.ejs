@@ -1,0 +1,80 @@
+<%- include('../partials/layout-start', { title: instructor.name, current: 'instructors' }) %>
+
+<a href="/instructors" class="text-muted" style="font-size:13px">← 教官一覧</a>
+
+<div class="grid-2 mt-4">
+
+  <div class="card">
+    <div class="card-header">基本情報</div>
+    <div class="card-body">
+      <table>
+        <tr><th style="width:120px">氏名</th><td><%= instructor.name %></td></tr>
+        <tr><th>フリガナ</th><td><%= instructor.kana %></td></tr>
+        <tr><th>保有資格</th><td>
+          <% for(const q of instructor.qualifications.split(',')) { %>
+            <span class="badge badge-blue" style="margin-right:2px"><%= q.trim() %></span>
+          <% } %>
+        </td></tr>
+        <tr><th>検定員</th><td><%= instructor.is_examiner ? '検定員' : '—' %></td></tr>
+        <% if(instructor.is_examiner && instructor.examiner_qualifications) { %>
+        <tr><th>検定資格</th><td>
+          <% for(const q of instructor.examiner_qualifications.split(',').filter(q => q)) { %>
+            <span class="badge badge-orange" style="margin-right:2px"><%= q.trim() %></span>
+          <% } %>
+        </td></tr>
+        <% } %>
+        <tr><th>ステータス</th><td>
+          <span class="badge <%= instructor.status === '在籍' ? 'badge-green' : 'badge-orange' %>">
+            <%= instructor.status %>
+          </span>
+        </td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">今月の実績</div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="kpi">
+          <div class="kpi-value"><%= monthStats.total || 0 %></div>
+          <div class="kpi-label">担当コマ数</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-value"><%= monthStats.done || 0 %></div>
+          <div class="kpi-label">完了</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="card">
+  <div class="card-header">今後のスケジュール（直近20件）</div>
+  <div class="card-body">
+    <% if(schedule.length === 0) { %>
+      <p class="text-muted">予定はありません</p>
+    <% } else { %>
+    <table>
+      <tr><th>日付</th><th>時限</th><th>生徒</th><th>種別</th><th>車両</th><th>ステータス</th></tr>
+      <% for(const l of schedule) { %>
+      <tr>
+        <td><%= l.lesson_date %></td>
+        <td><%= l.start_time %>〜<%= l.end_time %></td>
+        <td><a href="/students/<%= l.student_id %>"><%= l.student_name %></a></td>
+        <td><%= l.lesson_type %></td>
+        <td><%= l.vehicle_no || '—' %></td>
+        <td>
+          <span class="badge <%= l.status === '完了' ? 'badge-green' : l.status === '欠席' ? 'badge-red' : 'badge-blue' %>">
+            <%= l.status %>
+          </span>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

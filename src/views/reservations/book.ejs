@@ -1,0 +1,318 @@
+<%- include('../partials/layout-start', { title: '教習予約（' + student.name + '）', current: 'reservations' }) %>
+
+<style>
+/* グリッド */
+.timetable { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.timetable th, .timetable td {
+  border: 1px solid #e0e4ea;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+.timetable thead th {
+  background: #f0f4f8;
+  font-size: 12px;
+  padding: 8px 4px;
+  color: #555;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.timetable .date-col {
+  background: #f8fafc;
+  font-size: 12px;
+  padding: 10px 8px;
+  color: #333;
+  font-weight: 700;
+  width: 80px;
+  min-width: 80px;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 1.5;
+}
+.timetable .date-col .dow {
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+}
+.timetable .date-col.sat .dow { color: #2563eb; }
+.timetable .date-col.sun .dow { color: #dc2626; }
+.timetable .date-col.today-row { background: #fffbeb; border-left: 3px solid #f59e0b; }
+
+/* セル */
+.slot-cell {
+  display: block;
+  padding: 6px 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: filter 0.1s;
+}
+.slot-empty    { background: #f9fafb; color: #d1d5db; }
+.slot-open     { background: #d1fae5; color: #065f46; cursor: pointer; }
+.slot-open:hover { filter: brightness(0.93); }
+.slot-mine     { background: #bfdbfe; color: #1e40af; }
+.slot-full     { background: #fecaca; color: #991b1b; }
+.slot-gakka    { background: #ede9fe; color: #5b21b6; cursor: pointer; }
+.slot-gakka:hover { filter: brightness(0.93); }
+.slot-gakka.slot-mine { background: #c4b5fd; color: #3730a3; }
+
+.slot-cell .s-label { font-weight: 700; font-size: 12px; }
+.slot-cell .s-sub   { font-size: 10px; opacity: 0.85; margin-top: 1px; }
+.slot-cell .s-rem   { font-size: 10px; margin-top: 2px; }
+
+/* 凡例 */
+.legend { display:flex; gap:14px; margin-bottom:14px; font-size:12px; align-items:center; flex-wrap:wrap; }
+.legend-box { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+
+/* モーダル */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 12px; padding: 28px 32px;
+  width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+}
+.modal-title { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #1e2a3a; }
+.modal-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; border-bottom: 1px solid #f0f2f5; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+</style>
+
+<a href="/students/<%= student.id %>" class="text-muted" style="font-size:13px">← 生徒詳細に戻る</a>
+
+<% if(typeof error !== 'undefined' && error) { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin:12px 0">⚠️ <%= error %></div>
+<% } %>
+<% if(typeof success !== 'undefined' && success) { %>
+<div style="background:#dcfce7;border:1px solid #86efac;color:#15803d;padding:12px 16px;border-radius:8px;margin:12px 0">✓ 予約が完了しました</div>
+<% } %>
+
+<!-- ヘッダー -->
+<div class="card mb-4 mt-4">
+  <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <strong><%= student.name %></strong>
+      <span class="badge badge-blue" style="margin-left:8px"><%= student.license_type %></span>
+    </div>
+    <!-- 週ナビ -->
+    <%
+      const fromD = new Date(fromDate);
+      const prevDate = new Date(fromD); prevDate.setDate(prevDate.getDate() - 7);
+      const nextDate = new Date(fromD); nextDate.setDate(nextDate.getDate() + 7);
+      const prevStr = prevDate.toISOString().split('T')[0];
+      const nextStr = nextDate.toISOString().split('T')[0];
+    %>
+    <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+      <a href="/reservations/book/<%= student.id %>?from=<%= prevStr %>" class="btn btn-secondary">◀ 前の週</a>
+      <span style="font-size:13px;color:#555"><%= fromDate %> 〜</span>
+      <a href="/reservations/book/<%= student.id %>?from=<%= nextStr %>" class="btn btn-secondary">次の週 ▶</a>
+      <a href="/reservations/my/<%= student.id %>" class="btn btn-secondary">予約一覧</a>
+    </div>
+  </div>
+</div>
+
+<!-- 凡例 -->
+<div class="legend">
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#d1fae5;border:1px solid #6ee7b7"></div>実技・空き</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#ede9fe;border:1px solid #c4b5fd"></div>学科・空き</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#bfdbfe;border:1px solid #93c5fd"></div>自分の予約</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#fecaca;border:1px solid #fca5a5"></div>満席</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#f9fafb;border:1px solid #e5e7eb"></div>枠なし</div>
+</div>
+
+<%
+  // 7日分の日付リスト
+  const DAYS_JP = ['日','月','火','水','木','金','土'];
+  const dateList = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(fromDate);
+    d.setDate(d.getDate() + i);
+    dateList.push(d.toISOString().split('T')[0]);
+  }
+
+  // 時間帯リスト（全枠から収集）
+  const allTimes = [...new Set(slots.map(sl => sl.start_time))].sort();
+
+  // グリッドマップ: grid[date][time] = slot[]（複数教官が同時間にいる可能性）
+  const grid = {};
+  for (const sl of slots) {
+    if (!grid[sl.slot_date]) grid[sl.slot_date] = {};
+    if (!grid[sl.slot_date][sl.start_time]) grid[sl.slot_date][sl.start_time] = [];
+    grid[sl.slot_date][sl.start_time].push(sl);
+  }
+
+  // 学科の時限番号（簡易：その日その時間の学科スロットに番号を振る）
+  let gakkaNum = 1;
+  const gakkaLabel = {};
+  for (const date of dateList) {
+    for (const time of allTimes) {
+      const cellSlots = (grid[date] && grid[date][time]) || [];
+      for (const sl of cellSlots) {
+        if (sl.lesson_type === '学科') {
+          gakkaLabel[sl.id] = gakkaNum++;
+        }
+      }
+    }
+  }
+%>
+
+<div class="card">
+  <div class="card-body" style="overflow-x:auto;padding:8px">
+    <% if(allTimes.length === 0) { %>
+      <p class="text-muted" style="padding:20px">この期間に予約可能な枠はありません</p>
+    <% } else { %>
+    <table class="timetable">
+      <thead>
+        <tr>
+          <th style="width:80px">日付</th>
+          <% for(const t of allTimes) { %>
+          <th><%= t %></th>
+          <% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% for(const date of dateList) { %>
+        <%
+          const d = new Date(date);
+          const dow = DAYS_JP[d.getDay()];
+          const isToday = date === today;
+          const isSat = d.getDay() === 6;
+          const isSun = d.getDay() === 0;
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2,'0');
+        %>
+        <tr>
+          <td class="date-col <%= isToday ? 'today-row' : '' %> <%= isSat ? 'sat' : isSun ? 'sun' : '' %>">
+            <% if(isToday) { %><span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:3px;margin-bottom:2px;display:inline-block">今日</span><br><% } %>
+            <%= mm %>/<%= dd %><br>
+            <span class="dow">（<%= dow %>）</span>
+          </td>
+          <% for(const time of allTimes) { %>
+          <%
+            const cellSlots = (grid[date] && grid[date][time]) || [];
+            // 実技・学科を分ける
+            const jitsugiSlots = cellSlots.filter(sl => sl.lesson_type === '技能');
+            const gakkaSlots   = cellSlots.filter(sl => sl.lesson_type === '学科');
+          %>
+          <td style="padding:2px;min-width:70px">
+            <%
+              // 実技：複数台あれば空き合算
+              const totalOpen = jitsugiSlots.reduce((a,sl) => a + (sl.max_students - sl.reserved_count), 0);
+              const myJitsugi = jitsugiSlots.find(sl => mySlotIds.includes(sl.id));
+              const gakkaSl   = gakkaSlots[0];
+              const myGakka   = gakkaSlots.find(sl => mySlotIds.includes(sl.id));
+            %>
+
+            <%# 実技セル %>
+            <% if (myJitsugi) { %>
+              <div class="slot-cell slot-mine">
+                <span class="s-label">✓ 技能</span>
+                <span class="s-sub"><%= myJitsugi.vehicle_no || '' %></span>
+              </div>
+            <% } else if (jitsugiSlots.length > 0 && totalOpen > 0) { %>
+              <div class="slot-cell slot-open"
+                onclick="openModal(<%= jitsugiSlots.find(sl => sl.max_students - sl.reserved_count > 0).id %>, '<%= date %>', '<%= time %>', '<%= jitsugiSlots[0].end_time %>', '技能', '<%= jitsugiSlots.find(sl => sl.max_students - sl.reserved_count > 0).vehicle_no || '' %>', <%= totalOpen %>)">
+                <span class="s-label">技能</span>
+                <span class="s-rem">残 <%= totalOpen %></span>
+              </div>
+            <% } else if (jitsugiSlots.length > 0) { %>
+              <div class="slot-cell slot-full">
+                <span class="s-label">技能</span>
+                <span class="s-sub">満席</span>
+              </div>
+            <% } %>
+
+            <%# 学科セル %>
+            <% if (gakkaSl) { %>
+            <%
+              const gRemaining = gakkaSl.max_students - gakkaSl.reserved_count;
+              const gLabel = '第' + (gakkaLabel[gakkaSl.id] || '?') + '限';
+            %>
+              <% if (myGakka) { %>
+              <div class="slot-cell slot-gakka slot-mine" style="margin-top:2px">
+                <span class="s-label">✓ <%= gLabel %></span>
+                <span class="s-sub">学科</span>
+              </div>
+              <% } else if (gRemaining > 0) { %>
+              <div class="slot-cell slot-gakka" style="margin-top:2px"
+                onclick="openModal(<%= gakkaSl.id %>, '<%= date %>', '<%= time %>', '<%= gakkaSl.end_time %>', '学科', '教室', <%= gRemaining %>)">
+                <span class="s-label"><%= gLabel %></span>
+                <span class="s-rem">残 <%= gRemaining %></span>
+              </div>
+              <% } else { %>
+              <div class="slot-cell slot-full" style="margin-top:2px">
+                <span class="s-label"><%= gLabel %></span>
+                <span class="s-sub">満席</span>
+              </div>
+              <% } %>
+            <% } %>
+
+            <% if(cellSlots.length === 0) { %>
+              <div class="slot-cell slot-empty">—</div>
+            <% } %>
+
+          </td>
+          <% } %>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<!-- モーダル -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">この枠を予約しますか？</div>
+    <div class="modal-row"><span>日付</span><span id="m-date"></span></div>
+    <div class="modal-row"><span>時限</span><span id="m-time"></span></div>
+    <div class="modal-row"><span>種別</span><span id="m-type"></span></div>
+    <div class="modal-row"><span>車両・教室</span><span id="m-vehicle"></span></div>
+    <div class="modal-row"><span>残席</span><span id="m-rem"></span></div>
+    <div class="modal-row" style="align-items:center">
+      <span>段階</span>
+      <select id="m-stage" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">
+        <option value="第一段階">第一段階</option>
+        <option value="第二段階">第二段階</option>
+      </select>
+    </div>
+    <form method="post" action="/reservations/book/<%= student.id %>" id="reserve-form">
+      <input type="hidden" name="slot_id" id="m-slot-id">
+      <input type="hidden" name="date" id="m-date-hidden">
+      <input type="hidden" name="stage" id="m-stage-hidden" value="第一段階">
+    </form>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitReservation()">予約する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openModal(slotId, date, startTime, endTime, type, vehicle, remaining) {
+  document.getElementById('m-slot-id').value = slotId;
+  document.getElementById('m-date-hidden').value = date;
+  document.getElementById('m-date').textContent = date;
+  document.getElementById('m-time').textContent = startTime + '〜' + endTime;
+  document.getElementById('m-type').textContent = type;
+  document.getElementById('m-vehicle').textContent = vehicle || '—';
+  document.getElementById('m-rem').textContent = '残 ' + remaining;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function submitReservation() {
+  document.getElementById('m-stage-hidden').value = document.getElementById('m-stage').value;
+  document.getElementById('reserve-form').submit();
+}
+document.getElementById('modal').addEventListener('click', e => { if (e.target === this) closeModal(); });
+</script>
+
+<%- include('../partials/layout-end') %>

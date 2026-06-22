@@ -1,0 +1,69 @@
+<%- include('../partials/layout-start', { title: '生徒管理', current: 'students' }) %>
+
+<div class="grid-3 mb-4">
+  <div class="kpi blue">
+    <div class="kpi-value"><%= countMap['在校'] || 0 %></div>
+    <div class="kpi-label">在校</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-value"><%= countMap['卒業'] || 0 %></div>
+    <div class="kpi-label">卒業</div>
+  </div>
+  <div class="kpi gray">
+    <div class="kpi-value"><%= countMap['退校'] || 0 %></div>
+    <div class="kpi-label">退校</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">生徒一覧</div>
+  <div class="card-body">
+
+    <form method="get" class="filter-bar">
+      <select name="status">
+        <option value="">すべてのステータス</option>
+        <option value="在校" <%= status === '在校' ? 'selected' : '' %>>在校</option>
+        <option value="卒業" <%= status === '卒業' ? 'selected' : '' %>>卒業</option>
+        <option value="退校" <%= status === '退校' ? 'selected' : '' %>>退校</option>
+      </select>
+      <select name="license">
+        <option value="">すべての車種</option>
+        <option value="普通車" <%= license === '普通車' ? 'selected' : '' %>>普通車</option>
+        <option value="二輪" <%= license === '二輪' ? 'selected' : '' %>>二輪</option>
+        <option value="大型" <%= license === '大型' ? 'selected' : '' %>>大型</option>
+      </select>
+      <button type="submit" class="btn btn-primary">絞込</button>
+      <a href="/students" class="btn btn-secondary">リセット</a>
+    </form>
+
+    <table>
+      <tr>
+        <th>氏名</th><th>車種</th><th>入校日</th><th>卒業予定</th>
+        <th>ステータス</th><th>宿泊</th>
+      </tr>
+      <% for(const s of students) { %>
+      <tr>
+        <td><a href="/students/<%= s.id %>"><%= s.name %></a>
+          <div class="text-muted"><%= s.kana %></div>
+        </td>
+        <td>
+          <span class="badge <%= s.license_type === '普通車' ? 'badge-blue' : s.license_type === '二輪' ? 'badge-orange' : 'badge-purple' %>">
+            <%= s.license_type %>
+          </span>
+        </td>
+        <td><%= s.enrollment_date %></td>
+        <td><%= s.expected_graduation || '—' %></td>
+        <td>
+          <span class="badge <%= s.status === '在校' ? 'badge-green' : s.status === '卒業' ? 'badge-blue' : 'badge-gray' %>">
+            <%= s.status %>
+          </span>
+        </td>
+        <td class="text-muted"><%= s.room_number ? `${s.room_number}号室` : '—' %></td>
+      </tr>
+      <% } %>
+    </table>
+
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

@@ -1,0 +1,114 @@
+<%- include('../partials/layout-start', { title: student.name, current: 'students' }) %>
+
+<a href="/students" class="text-muted" style="font-size:13px">← 生徒一覧</a>
+
+<div class="grid-2 mt-4">
+
+  <div class="card">
+    <div class="card-header">基本情報</div>
+    <div class="card-body">
+      <table>
+        <tr><th style="width:120px">氏名</th><td><%= student.name %></td></tr>
+        <tr><th>フリガナ</th><td><%= student.kana %></td></tr>
+        <tr><th>取得車種</th><td>
+          <span class="badge <%= student.license_type === '普通車' ? 'badge-blue' : student.license_type === '二輪' ? 'badge-orange' : 'badge-purple' %>">
+            <%= student.license_type %>
+          </span>
+        </td></tr>
+        <tr><th>電話</th><td><%= student.phone || '—' %></td></tr>
+        <tr><th>メール</th><td><%= student.email || '—' %></td></tr>
+        <tr><th>入校日</th><td><%= student.enrollment_date %></td></tr>
+        <tr><th>卒業予定</th><td><%= student.expected_graduation || '—' %></td></tr>
+        <tr><th>ステータス</th><td>
+          <span class="badge <%= student.status === '在校' ? 'badge-green' : student.status === '卒業' ? 'badge-blue' : 'badge-gray' %>">
+            <%= student.status %>
+          </span>
+        </td></tr>
+        <tr><th>宿泊室</th><td><%= student.room_number ? `${student.room_number}号室` : '宿泊なし' %></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">教習進捗</div>
+    <div class="card-body">
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>第一段階</span>
+          <span class="text-muted"><%= stageMap['第一段階'] || 0 %> 時限完了</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:<%= Math.min(100, ((stageMap['第一段階'] || 0) / 15) * 100) %>%"></div>
+        </div>
+        <div class="text-muted" style="margin-top:2px">目安: 15時限</div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>第二段階</span>
+          <span class="text-muted"><%= stageMap['第二段階'] || 0 %> 時限完了</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill green" style="width:<%= Math.min(100, ((stageMap['第二段階'] || 0) / 19) * 100) %>%"></div>
+        </div>
+        <div class="text-muted" style="margin-top:2px">目安: 19時限</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="card">
+  <div class="card-header">教習履歴（直近20件）</div>
+  <div class="card-body">
+    <% if(lessons.length === 0) { %>
+      <p class="text-muted">教習記録がありません</p>
+    <% } else { %>
+    <table>
+      <tr><th>日付</th><th>時限</th><th>種別</th><th>段階</th><th>教官</th><th>車両</th><th>ステータス</th></tr>
+      <% for(const l of lessons) { %>
+      <tr>
+        <td><%= l.lesson_date %></td>
+        <td><%= l.start_time %>〜<%= l.end_time %></td>
+        <td><%= l.lesson_type %></td>
+        <td><span class="badge badge-gray"><%= l.stage %></span></td>
+        <td><%= l.instructor_name %></td>
+        <td><%= l.vehicle_no || '—' %></td>
+        <td>
+          <span class="badge <%= l.status === '完了' ? 'badge-green' : l.status === '欠席' ? 'badge-red' : l.status === 'キャンセル' ? 'badge-gray' : 'badge-blue' %>">
+            <%= l.status %>
+          </span>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">検定履歴</div>
+  <div class="card-body">
+    <% if(exams.length === 0) { %>
+      <p class="text-muted">検定記録がありません</p>
+    <% } else { %>
+    <table>
+      <tr><th>日付</th><th>種別</th><th>結果</th><th>点数</th><th>検定員</th></tr>
+      <% for(const e of exams) { %>
+      <tr>
+        <td><%= e.exam_date %></td>
+        <td><span class="badge badge-purple"><%= e.exam_type %></span></td>
+        <td>
+          <span class="badge <%= e.result === '合格' ? 'badge-green' : e.result === '不合格' ? 'badge-red' : 'badge-gray' %>">
+            <%= e.result %>
+          </span>
+        </td>
+        <td><%= e.score !== null ? e.score + '点' : '—' %></td>
+        <td><%= e.examiner_name %></td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

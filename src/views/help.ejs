@@ -1,0 +1,247 @@
+<%- include('partials/layout-start', { title: '操作ガイド', current: 'help' }) %>
+
+<div style="max-width:860px">
+
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px 20px;margin-bottom:24px;font-size:13px;color:#856404">
+    これは仮説モデル v0.1 です。実業務ヒアリング前の叩き台として作成しています。
+  </div>
+
+  <!-- ロール別ナビ -->
+  <div class="grid-3 mb-4">
+    <a href="#staff" style="text-decoration:none">
+      <div class="card" style="text-align:center;padding:20px;cursor:pointer">
+        <div style="font-size:28px;margin-bottom:8px">🏢</div>
+        <div style="font-weight:bold;color:#1e2a3a">事務職員</div>
+        <div class="text-muted">枠作成・配車・入校管理</div>
+      </div>
+    </a>
+    <a href="#instructor" style="text-decoration:none">
+      <div class="card" style="text-align:center;padding:20px;cursor:pointer">
+        <div style="font-size:28px;margin-bottom:8px">👨‍🏫</div>
+        <div style="font-weight:bold;color:#1e2a3a">教官</div>
+        <div class="text-muted">スケジュール確認</div>
+      </div>
+    </a>
+    <a href="#student" style="text-decoration:none">
+      <div class="card" style="text-align:center;padding:20px;cursor:pointer">
+        <div style="font-size:28px;margin-bottom:8px">🚗</div>
+        <div style="font-weight:bold;color:#1e2a3a">生徒</div>
+        <div class="text-muted">予約・進捗確認</div>
+      </div>
+    </a>
+  </div>
+
+  <!-- 画面マップ -->
+  <div class="card mb-4">
+    <div class="card-header">画面一覧</div>
+    <div class="card-body">
+      <table>
+        <tr><th style="width:180px">画面</th><th style="width:200px">URL</th><th>できること</th><th style="width:100px">主な利用者</th></tr>
+        <tr>
+          <td><a href="/">ダッシュボード</a></td>
+          <td class="text-muted">/</td>
+          <td>在校生数・車両稼働・宿泊稼働・近日検定を一覧確認</td>
+          <td><span class="badge badge-orange">管理者</span></td>
+        </tr>
+        <tr>
+          <td><a href="/students">生徒管理</a></td>
+          <td class="text-muted">/students</td>
+          <td>生徒一覧・絞り込み（ステータス／車種）</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td>生徒詳細</td>
+          <td class="text-muted">/students/:id</td>
+          <td>基本情報・教習進捗・教習履歴・検定履歴</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td><a href="/instructors">教官管理</a></td>
+          <td class="text-muted">/instructors</td>
+          <td>教官一覧・資格・検定員区分確認</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td>教官詳細</td>
+          <td class="text-muted">/instructors/:id</td>
+          <td>担当スケジュール・月次実績確認</td>
+          <td><span class="badge badge-blue">事務</span> <span class="badge badge-green">教官</span></td>
+        </tr>
+        <tr>
+          <td><a href="/schedule">配車スケジュール</a></td>
+          <td class="text-muted">/schedule</td>
+          <td>日付指定で当日の教習コマを一覧表示・車両稼働数確認</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td><a href="/exams">検定管理</a></td>
+          <td class="text-muted">/exams</td>
+          <td>検定一覧・合否・点数確認</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td><a href="/accommodation">宿泊管理</a></td>
+          <td class="text-muted">/accommodation</td>
+          <td>寮別の使用率・在室者一覧</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td><a href="/reservations/admin">予約管理（事務）</a></td>
+          <td class="text-muted">/reservations/admin</td>
+          <td>教習枠の作成・削除・予約状況確認</td>
+          <td><span class="badge badge-blue">事務</span></td>
+        </tr>
+        <tr>
+          <td>予約（生徒）</td>
+          <td class="text-muted">/reservations/book/:id</td>
+          <td>空き枠一覧から予約・予約キャンセル</td>
+          <td><span class="badge badge-green">生徒</span></td>
+        </tr>
+        <tr>
+          <td>予約一覧（生徒）</td>
+          <td class="text-muted">/reservations/my/:id</td>
+          <td>自分の予約履歴確認・キャンセル</td>
+          <td><span class="badge badge-green">生徒</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 事務フロー -->
+  <div class="card mb-4" id="staff">
+    <div class="card-header">🏢 事務職員の操作フロー</div>
+    <div class="card-body">
+
+      <div style="margin-bottom:24px">
+        <div style="font-weight:bold;margin-bottom:10px;color:#1e2a3a">① 入校時</div>
+        <div style="display:flex;gap:0;align-items:center;flex-wrap:wrap">
+          <div style="background:#dbeafe;border-radius:6px;padding:8px 14px;font-size:13px">生徒情報登録<br><span class="text-muted">/students（未実装）</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#dbeafe;border-radius:6px;padding:8px 14px;font-size:13px">宿泊室割当<br><span class="text-muted">/accommodation</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#dbeafe;border-radius:6px;padding:8px 14px;font-size:13px">教習枠作成<br><span class="text-muted">/reservations/admin</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:24px">
+        <div style="font-weight:bold;margin-bottom:10px;color:#1e2a3a">② 日次運用</div>
+        <div style="display:flex;gap:0;align-items:center;flex-wrap:wrap">
+          <div style="background:#fef9c3;border-radius:6px;padding:8px 14px;font-size:13px">当日スケジュール確認<br><span class="text-muted">/schedule</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#fef9c3;border-radius:6px;padding:8px 14px;font-size:13px">車両・教官確認<br><span class="text-muted">/instructors</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#fef9c3;border-radius:6px;padding:8px 14px;font-size:13px">予約状況確認<br><span class="text-muted">/reservations/admin</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:bold;margin-bottom:10px;color:#1e2a3a">③ 検定手配</div>
+        <div style="display:flex;gap:0;align-items:center;flex-wrap:wrap">
+          <div style="background:#dcfce7;border-radius:6px;padding:8px 14px;font-size:13px">受験資格確認<br><span class="text-muted">/students/:id</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#dcfce7;border-radius:6px;padding:8px 14px;font-size:13px">検定員割当<br><span class="text-muted">/exams（未実装）</span></div>
+          <div style="padding:0 10px;color:#9ca3af">→</div>
+          <div style="background:#dcfce7;border-radius:6px;padding:8px 14px;font-size:13px">結果登録<br><span class="text-muted">/exams（未実装）</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 教官フロー -->
+  <div class="card mb-4" id="instructor">
+    <div class="card-header">👨‍🏫 教官の操作フロー</div>
+    <div class="card-body">
+      <table>
+        <tr><th>やること</th><th>操作</th><th>URL例</th></tr>
+        <tr>
+          <td>今日の担当を確認する</td>
+          <td><a href="/schedule">配車スケジュール</a>を開いて今日の日付を選択</td>
+          <td class="text-muted">/schedule</td>
+        </tr>
+        <tr>
+          <td>自分の今後の予定を確認する</td>
+          <td><a href="/instructors">教官一覧</a>から自分の名前をクリック</td>
+          <td class="text-muted">/instructors/:id</td>
+        </tr>
+        <tr>
+          <td>担当生徒の進捗を確認する</td>
+          <td>スケジュール画面の生徒名リンクをクリック</td>
+          <td class="text-muted">/students/:id</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 生徒フロー -->
+  <div class="card mb-4" id="student">
+    <div class="card-header">🚗 生徒の操作フロー（マイページ想定）</div>
+    <div class="card-body">
+      <table>
+        <tr><th>やること</th><th>操作</th><th>URL例（生徒ID=1の場合）</th></tr>
+        <tr>
+          <td>教習を予約する</td>
+          <td>生徒詳細 → 「予約する」ボタン → 日付を選んで空き枠を選択</td>
+          <td><a href="/reservations/book/1">/reservations/book/1</a></td>
+        </tr>
+        <tr>
+          <td>自分の予約を確認する</td>
+          <td>生徒詳細 → 「予約一覧」</td>
+          <td><a href="/reservations/my/1">/reservations/my/1</a></td>
+        </tr>
+        <tr>
+          <td>予約をキャンセルする</td>
+          <td>予約一覧のキャンセルボタン（当日以降のみ）</td>
+          <td><a href="/reservations/my/1">/reservations/my/1</a></td>
+        </tr>
+        <tr>
+          <td>自分の進捗を確認する</td>
+          <td>生徒詳細の「教習進捗」カード</td>
+          <td><a href="/students/1">/students/1</a></td>
+        </tr>
+      </table>
+
+      <div style="margin-top:16px">
+        <div style="font-weight:bold;margin-bottom:8px;font-size:13px">サンプル生徒（クリックで詳細へ）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <% const sampleStudents = [
+            {id:1,name:'山田 太郎',type:'普通車'},
+            {id:2,name:'中村 明美',type:'普通車'},
+            {id:3,name:'小林 健太',type:'二輪'},
+            {id:4,name:'加藤 さくら',type:'普通車'},
+            {id:5,name:'吉田 大輔',type:'大型'},
+          ] %>
+          <% for(const s of sampleStudents) { %>
+          <a href="/students/<%= s.id %>" style="text-decoration:none">
+            <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;font-size:13px">
+              <%= s.name %>
+              <span class="badge badge-blue" style="margin-left:6px"><%= s.type %></span>
+            </div>
+          </a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 未実装メモ -->
+  <div class="card">
+    <div class="card-header">⚠️ 未実装・仮説の穴（ヒアリング項目）</div>
+    <div class="card-body">
+      <table>
+        <tr><th style="width:200px">項目</th><th>内容</th></tr>
+        <tr><td>生徒登録フォーム</td><td>現状はシードデータのみ。入校受付フローが未定義</td></tr>
+        <tr><td>効果測定</td><td>第一段階→第二段階の進級条件（効果測定合格）が未実装</td></tr>
+        <tr><td>時限順序制約</td><td>どの教習を何時限目に受けるべきかの順序管理がない</td></tr>
+        <tr><td>キャンセル待ち</td><td>満席枠へのキャンセル待ち登録機能がない</td></tr>
+        <tr><td>送迎バス</td><td>バス時刻・ルート・乗車予約の概念がない</td></tr>
+        <tr><td>検定登録フォーム</td><td>検定の新規登録・結果入力が未実装</td></tr>
+        <tr><td>繁忙期宿泊調整</td><td>3月・9月の定員超過時の対応フローが未定義</td></tr>
+        <tr><td>教官シフト</td><td>教官の出勤日・休日管理がない（枠の重複チェックも未実装）</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<%- include('partials/layout-end') %>

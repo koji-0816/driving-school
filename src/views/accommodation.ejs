@@ -1,0 +1,35 @@
+<%- include('partials/layout-start', { title: '宿泊管理', current: 'accommodation' }) %>
+
+<div class="grid-2 mb-4">
+  <% for(const a of accommodations) { %>
+  <div class="kpi">
+    <div class="kpi-value <%= (occupancyMap[a.id]||0) / a.total_rooms > 0.8 ? 'orange' : 'blue' %>">
+      <%= occupancyMap[a.id] || 0 %>/<%= a.total_rooms %>
+    </div>
+    <div class="kpi-label"><%= a.name %> 使用率
+      (<%= a.total_rooms > 0 ? Math.round((occupancyMap[a.id]||0)/a.total_rooms*100) : 0 %>%)
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <div class="card-header">在室者一覧（在校生）</div>
+  <div class="card-body">
+    <table>
+      <tr><th>施設</th><th>部屋</th><th>生徒</th><th>車種</th><th>入校日</th><th>卒業予定</th></tr>
+      <% for(const r of residents) { %>
+      <tr>
+        <td><%= r.accommodation_name %></td>
+        <td><%= r.room_number %>号室</td>
+        <td><a href="/students/<%= r.id %>"><%= r.name %></a></td>
+        <td><span class="badge badge-blue"><%= r.license_type %></span></td>
+        <td><%= r.enrollment_date %></td>
+        <td><%= r.expected_graduation || '—' %></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('partials/layout-end') %>

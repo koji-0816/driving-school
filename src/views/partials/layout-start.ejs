@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> — 教習所管理システム</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-title">
+      教習所管理システム
+      <small>仮説モデル v0.1</small>
+    </div>
+    <nav>
+      <a href="/" class="<%= current === 'dashboard' ? 'active' : '' %>">ダッシュボード</a>
+      <a href="/students" class="<%= current === 'students' ? 'active' : '' %>">生徒管理</a>
+      <a href="/instructors" class="<%= current === 'instructors' ? 'active' : '' %>">教官管理</a>
+      <a href="/schedule" class="<%= current === 'schedule' ? 'active' : '' %>">配車スケジュール</a>
+      <a href="/exams" class="<%= current === 'exams' ? 'active' : '' %>">検定管理</a>
+      <a href="/accommodation" class="<%= current === 'accommodation' ? 'active' : '' %>">宿泊管理</a>
+      <a href="/reservations/admin" class="<%= current === 'reservations' ? 'active' : '' %>">予約管理</a>
+      <a href="/help" class="<%= current === 'help' ? 'active' : '' %>" style="margin-top:12px;border-top:1px solid #2e3e52;padding-top:12px">操作ガイド</a>
+    </nav>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1><%= title %></h1>
+      <span class="date"><%= new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }) %></span>
+    </div>
+    <div class="content">

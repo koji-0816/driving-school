@@ -1,0 +1,39 @@
+<%- include('../partials/layout-start', { title: '教官管理', current: 'instructors' }) %>
+
+<div class="card">
+  <div class="card-header">教官一覧</div>
+  <div class="card-body">
+    <table>
+      <tr>
+        <th>氏名</th><th>保有資格</th><th>検定員</th><th>検定可能資格</th><th>ステータス</th>
+      </tr>
+      <% for(const i of instructors) { %>
+      <tr>
+        <td><a href="/instructors/<%= i.id %>"><%= i.name %></a>
+          <div class="text-muted"><%= i.kana %></div>
+        </td>
+        <td>
+          <% for(const q of i.qualifications.split(',')) { %>
+            <span class="badge badge-blue" style="margin-right:2px"><%= q.trim() %></span>
+          <% } %>
+        </td>
+        <td><%- i.is_examiner ? '<span class="badge badge-purple">検定員</span>' : '—' %></td>
+        <td>
+          <% if(i.examiner_qualifications) { %>
+            <% for(const q of i.examiner_qualifications.split(',').filter(q => q)) { %>
+              <span class="badge badge-orange" style="margin-right:2px"><%= q.trim() %></span>
+            <% } %>
+          <% } else { %>—<% } %>
+        </td>
+        <td>
+          <span class="badge <%= i.status === '在籍' ? 'badge-green' : i.status === '休職' ? 'badge-orange' : 'badge-gray' %>">
+            <%= i.status %>
+          </span>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

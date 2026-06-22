@@ -1,0 +1,174 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Meiryo', 'Hiragino Kaku Gothic Pro', sans-serif;
+  background: #f4f6f9;
+  color: #333;
+  font-size: 14px;
+}
+
+/* レイアウト */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 220px;
+  background: #1e2a3a;
+  color: #cdd;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.sidebar-title {
+  background: #141e2b;
+  padding: 20px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  border-bottom: 1px solid #2e3e52;
+}
+
+.sidebar-title small { display: block; font-size: 11px; color: #88aacc; margin-top: 2px; }
+
+.sidebar nav a {
+  display: block;
+  padding: 12px 16px;
+  color: #99bbcc;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background 0.15s;
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active {
+  background: #2a3d55;
+  color: #fff;
+  border-left-color: #4a9eff;
+}
+
+.main { flex: 1; overflow: auto; }
+
+.topbar {
+  background: #fff;
+  padding: 14px 24px;
+  border-bottom: 1px solid #e0e4ea;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar h1 { font-size: 18px; font-weight: bold; color: #1e2a3a; }
+.topbar .date { font-size: 12px; color: #888; }
+
+.content { padding: 24px; }
+
+/* カード */
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+}
+
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f2f5;
+  font-weight: bold;
+  font-size: 14px;
+  color: #444;
+}
+
+.card-body { padding: 20px; }
+
+/* グリッド */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+/* 統計KPI */
+.kpi {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  text-align: center;
+}
+
+.kpi-value { font-size: 36px; font-weight: bold; color: #1e2a3a; line-height: 1; }
+.kpi-label { font-size: 12px; color: #888; margin-top: 6px; }
+.kpi.blue .kpi-value { color: #2563eb; }
+.kpi.green .kpi-value { color: #16a34a; }
+.kpi.orange .kpi-value { color: #d97706; }
+.kpi.red .kpi-value { color: #dc2626; }
+
+/* テーブル */
+table { width: 100%; border-collapse: collapse; }
+th { background: #f8fafc; color: #555; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 12px; }
+td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbfc; }
+
+/* バッジ */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
+.badge-green { background: #dcfce7; color: #15803d; }
+.badge-red { background: #fee2e2; color: #b91c1c; }
+.badge-orange { background: #fed7aa; color: #c2410c; }
+.badge-gray { background: #f1f5f9; color: #64748b; }
+.badge-purple { background: #ede9fe; color: #6d28d9; }
+
+/* フィルター */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filter-bar select, .filter-bar input[type="date"] {
+  padding: 7px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  color: #333;
+}
+.btn {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #f1f5f9; color: #475569; }
+.btn-secondary:hover { background: #e2e8f0; }
+
+/* 進捗バー */
+.progress-bar {
+  background: #e5e7eb;
+  border-radius: 8px;
+  height: 8px;
+  overflow: hidden;
+}
+.progress-fill { background: #2563eb; height: 100%; border-radius: 8px; transition: width 0.3s; }
+.progress-fill.green { background: #16a34a; }
+.progress-fill.orange { background: #d97706; }
+
+/* リンク */
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.text-muted { color: #9ca3af; font-size: 12px; }
+.mt-4 { margin-top: 16px; }
+.mb-4 { margin-bottom: 16px; }

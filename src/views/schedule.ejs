@@ -1,0 +1,52 @@
+<%- include('partials/layout-start', { title: '配車スケジュール', current: 'schedule' }) %>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="filter-bar">
+      <input type="date" name="date" value="<%= date %>">
+      <button type="submit" class="btn btn-primary">表示</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid-3 mb-4">
+  <% for(const v of vehicleStats) { %>
+  <div class="kpi">
+    <div class="kpi-value <%= v.active < v.total * 0.5 ? 'orange' : '' %>"><%= v.active %>/<%= v.total %></div>
+    <div class="kpi-label"><%= v.license_type %> 稼働台数</div>
+  </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <div class="card-header"><%= date %> の教習一覧</div>
+  <div class="card-body">
+    <% if(lessons.length === 0) { %>
+      <p class="text-muted">この日の教習はありません</p>
+    <% } else { %>
+    <table>
+      <tr>
+        <th>時限</th><th>生徒</th><th>車種</th><th>教官</th><th>車両</th><th>種別</th><th>段階</th><th>ステータス</th>
+      </tr>
+      <% for(const l of lessons) { %>
+      <tr>
+        <td style="white-space:nowrap"><%= l.start_time %>〜<%= l.end_time %></td>
+        <td><a href="/students/<%= l.student_id %>"><%= l.student_name %></a></td>
+        <td><span class="badge badge-blue"><%= l.license_type %></span></td>
+        <td><a href="/instructors/<%= l.instructor_id %>"><%= l.instructor_name %></a></td>
+        <td><%= l.vehicle_no || '学科' %></td>
+        <td><%= l.lesson_type %></td>
+        <td><span class="badge badge-gray"><%= l.stage %></span></td>
+        <td>
+          <span class="badge <%= l.status === '完了' ? 'badge-green' : l.status === '欠席' ? 'badge-red' : l.status === 'キャンセル' ? 'badge-gray' : 'badge-blue' %>">
+            <%= l.status %>
+          </span>
+        </td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/layout-end') %>
