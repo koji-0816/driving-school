@@ -14,15 +14,74 @@
       <small>仮説モデル v0.1</small>
     </div>
     <nav>
-      <a href="/" class="<%= current === 'dashboard' ? 'active' : '' %>">ダッシュボード</a>
-      <a href="/students" class="<%= current === 'students' ? 'active' : '' %>">生徒管理</a>
-      <a href="/instructors" class="<%= current === 'instructors' ? 'active' : '' %>">教官管理</a>
-      <a href="/schedule" class="<%= current === 'schedule' ? 'active' : '' %>">配車スケジュール</a>
-      <a href="/exams" class="<%= current === 'exams' ? 'active' : '' %>">検定管理</a>
-      <a href="/accommodation" class="<%= current === 'accommodation' ? 'active' : '' %>">宿泊管理</a>
-      <a href="/reservations/admin" class="<%= current === 'reservations' ? 'active' : '' %>">予約管理</a>
-      <a href="/facilities" class="<%= current === 'facilities' ? 'active' : '' %>">設備管理</a>
-      <a href="/help" class="<%= current === 'help' ? 'active' : '' %>" style="margin-top:12px;border-top:1px solid #2e3e52;padding-top:12px">操作ガイド</a>
+
+      <%
+        const inGroup = (keys) => keys.some(k => current === k);
+      %>
+
+      <!-- 管理者 -->
+      <div class="nav-group role-admin <%= inGroup(['dashboard','students','instructors','facilities','accommodation','exams']) ? 'open' : '' %>">
+        <div class="nav-group-header" onclick="toggleNav(this)">
+          <span class="nav-role-icon">管</span>
+          管理者メニュー
+          <span class="nav-toggle">▶</span>
+        </div>
+        <div class="nav-group-body">
+          <a href="/"             class="<%= current === 'dashboard'     ? 'active' : '' %>">ダッシュボード</a>
+          <a href="/students"     class="<%= current === 'students'      ? 'active' : '' %>">生徒管理</a>
+          <a href="/instructors"  class="<%= current === 'instructors'   ? 'active' : '' %>">教官管理</a>
+          <a href="/facilities"   class="<%= current === 'facilities'    ? 'active' : '' %>">設備管理</a>
+          <a href="/accommodation" class="<%= current === 'accommodation' ? 'active' : '' %>">宿泊管理</a>
+          <a href="/exams"        class="<%= current === 'exams'         ? 'active' : '' %>">検定管理</a>
+        </div>
+      </div>
+
+      <!-- 職員 -->
+      <div class="nav-group role-staff <%= inGroup(['schedule','reservations']) ? 'open' : '' %>">
+        <div class="nav-group-header" onclick="toggleNav(this)">
+          <span class="nav-role-icon">職</span>
+          職員メニュー
+          <span class="nav-toggle">▶</span>
+        </div>
+        <div class="nav-group-body">
+          <a href="/schedule"          class="<%= current === 'schedule'     ? 'active' : '' %>">配車スケジュール</a>
+          <a href="/reservations/admin" class="<%= current === 'reservations' ? 'active' : '' %>">予約枠管理</a>
+        </div>
+      </div>
+
+      <!-- 教員 -->
+      <div class="nav-group role-instructor">
+        <div class="nav-group-header" onclick="toggleNav(this)">
+          <span class="nav-role-icon">教</span>
+          教員メニュー
+          <span class="nav-toggle">▶</span>
+        </div>
+        <div class="nav-group-body">
+          <a href="/schedule">自分のスケジュール</a>
+          <a href="/exams">検定（試験官）</a>
+        </div>
+      </div>
+
+      <!-- 生徒 -->
+      <div class="nav-group role-student">
+        <div class="nav-group-header" onclick="toggleNav(this)">
+          <span class="nav-role-icon">生</span>
+          生徒メニュー
+          <span class="nav-toggle">▶</span>
+        </div>
+        <div class="nav-group-body">
+          <a href="/reservations/book/1">空き枠・予約</a>
+          <a href="/reservations/my/1">自分の予約</a>
+          <a href="/students/1">教習進捗</a>
+        </div>
+      </div>
+
+      <!-- 共通 -->
+      <a href="/help" class="<%= current === 'help' ? 'active' : '' %>"
+         style="margin-top:8px;border-top:1px solid #253548;padding-top:10px;font-size:12px;color:#557799">
+        操作ガイド
+      </a>
+
     </nav>
   </div>
   <div class="main">
@@ -31,3 +90,10 @@
       <span class="date"><%= new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }) %></span>
     </div>
     <div class="content">
+
+<script>
+function toggleNav(header) {
+  const group = header.closest('.nav-group');
+  group.classList.toggle('open');
+}
+</script>
