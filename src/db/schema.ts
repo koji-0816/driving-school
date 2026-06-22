@@ -18,8 +18,12 @@ export function initDb(): void {
       phone TEXT,
       email TEXT,
       license_type TEXT NOT NULL DEFAULT '普通車',  -- 普通車/二輪/大型
+      student_type TEXT NOT NULL DEFAULT '合宿',    -- 合宿/通学
       enrollment_date TEXT NOT NULL,
-      expected_graduation TEXT,
+      expected_graduation TEXT,                      -- 合宿のみ実質使用
+      lesson_start_date TEXT,                        -- 最初の教習受講日（教習期限の起算日）
+      provisional_license_date TEXT,                 -- 仮免取得日
+      stage2_complete_date TEXT,                     -- 第二段階修了日（卒検期限の起算日）
       status TEXT NOT NULL DEFAULT '在校',           -- 在校/卒業/退校
       accommodation_id INTEGER,
       room_number TEXT,

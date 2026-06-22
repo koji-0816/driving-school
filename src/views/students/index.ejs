@@ -1,5 +1,14 @@
 <%- include('../partials/layout-start', { title: '生徒管理', current: 'students' }) %>
 
+<%
+function deadlineBadge(label, date, level) {
+  if (!date) return '';
+  const cls = level === 'expired' ? 'badge-red' : level === 'warn' ? 'badge-orange' : 'badge-gray';
+  const mark = level === 'expired' ? '⚠️ 期限切れ ' : level === 'warn' ? '⚠️ ' : '';
+  return `<span class="badge ${cls}" style="margin-right:2px">${mark}${label} ${date}</span>`;
+}
+%>
+
 <div class="grid-3 mb-4">
   <div class="kpi blue">
     <div class="kpi-value"><%= countMap['在校'] || 0 %></div>
@@ -22,15 +31,20 @@
     <form method="get" class="filter-bar">
       <select name="status">
         <option value="">すべてのステータス</option>
-        <option value="在校" <%= status === '在校' ? 'selected' : '' %>>在校</option>
-        <option value="卒業" <%= status === '卒業' ? 'selected' : '' %>>卒業</option>
-        <option value="退校" <%= status === '退校' ? 'selected' : '' %>>退校</option>
+        <option value="在校"  <%= status === '在校'  ? 'selected' : '' %>>在校</option>
+        <option value="卒業"  <%= status === '卒業'  ? 'selected' : '' %>>卒業</option>
+        <option value="退校"  <%= status === '退校'  ? 'selected' : '' %>>退校</option>
+      </select>
+      <select name="type">
+        <option value="">合宿・通学すべて</option>
+        <option value="合宿" <%= type === '合宿' ? 'selected' : '' %>>合宿</option>
+        <option value="通学" <%= type === '通学' ? 'selected' : '' %>>通学</option>
       </select>
       <select name="license">
         <option value="">すべての車種</option>
         <option value="普通車" <%= license === '普通車' ? 'selected' : '' %>>普通車</option>
-        <option value="二輪" <%= license === '二輪' ? 'selected' : '' %>>二輪</option>
-        <option value="大型" <%= license === '大型' ? 'selected' : '' %>>大型</option>
+        <option value="二輪"   <%= license === '二輪'   ? 'selected' : '' %>>二輪</option>
+        <option value="大型"   <%= license === '大型'   ? 'selected' : '' %>>大型</option>
       </select>
       <button type="submit" class="btn btn-primary">絞込</button>
       <a href="/students" class="btn btn-secondary">リセット</a>
@@ -38,13 +52,24 @@
 
     <table>
       <tr>
-        <th>氏名</th><th>車種</th><th>入校日</th><th>卒業予定</th>
-        <th>ステータス</th><th>宿泊</th>
+        <th>氏名</th>
+        <th>区分</th>
+        <th>車種</th>
+        <th>入校日</th>
+        <th>卒業予定 / 期限</th>
+        <th>ステータス</th>
+        <th>宿泊</th>
       </tr>
       <% for(const s of students) { %>
       <tr>
-        <td><a href="/students/<%= s.id %>"><%= s.name %></a>
+        <td>
+          <a href="/students/<%= s.id %>"><%= s.name %></a>
           <div class="text-muted"><%= s.kana %></div>
+        </td>
+        <td>
+          <span class="badge <%= s.student_type === '合宿' ? 'badge-blue' : 'badge-green' %>">
+            <%= s.student_type %>
+          </span>
         </td>
         <td>
           <span class="badge <%= s.license_type === '普通車' ? 'badge-blue' : s.license_type === '二輪' ? 'badge-orange' : 'badge-purple' %>">
@@ -52,13 +77,23 @@
           </span>
         </td>
         <td><%= s.enrollment_date %></td>
-        <td><%= s.expected_graduation || '—' %></td>
+        <td>
+          <% if(s.student_type === '合宿') { %>
+            <%= s.expected_graduation || '—' %>
+          <% } else { %>
+            <div style="line-height:1.8">
+              <%- deadlineBadge('教習', s.lessonDeadline, s.lessonLevel) %>
+              <%- deadlineBadge('仮免', s.provLicDeadline, s.provLicLevel) %>
+              <%- deadlineBadge('卒検', s.stage2Deadline, s.stage2Level) %>
+            </div>
+          <% } %>
+        </td>
         <td>
           <span class="badge <%= s.status === '在校' ? 'badge-green' : s.status === '卒業' ? 'badge-blue' : 'badge-gray' %>">
             <%= s.status %>
           </span>
         </td>
-        <td class="text-muted"><%= s.room_number ? `${s.room_number}号室` : '—' %></td>
+        <td class="text-muted"><%= s.room_number ? `${s.room_number}号室` : s.student_type === '通学' ? '通学' : '—' %></td>
       </tr>
       <% } %>
     </table>

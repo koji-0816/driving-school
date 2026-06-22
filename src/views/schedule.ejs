@@ -4,7 +4,14 @@
   <div class="card-body">
     <form method="get" class="filter-bar">
       <input type="date" name="date" value="<%= date %>">
+      <select name="instructor_id">
+        <option value="">教官：すべて</option>
+        <% for(const i of instructors) { %>
+          <option value="<%= i.id %>" <%= instructorId == i.id ? 'selected' : '' %>><%= i.name %></option>
+        <% } %>
+      </select>
       <button type="submit" class="btn btn-primary">表示</button>
+      <% if(instructorId) { %><a href="/schedule?date=<%= date %>" class="btn btn-secondary">絞込解除</a><% } %>
     </form>
   </div>
 </div>

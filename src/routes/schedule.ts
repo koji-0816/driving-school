@@ -7,8 +7,9 @@ router.get('/', (req: Request, res: Response) => {
   const db = getDb();
   const today = new Date().toISOString().split('T')[0];
   const date = req.query.date as string || today;
+  const instructorId = req.query.instructor_id as string || '';
 
-  const lessons = db.prepare(`
+  let query = `
     SELECT l.*,
            s.name as student_name, s.license_type,
            i.name as instructor_name,
@@ -18,8 +19,12 @@ router.get('/', (req: Request, res: Response) => {
     JOIN instructors i ON l.instructor_id = i.id
     LEFT JOIN vehicles v ON l.vehicle_id = v.id
     WHERE l.lesson_date = ?
-    ORDER BY l.start_time, i.name
-  `).all(date);
+  `;
+  const params: (string)[] = [date];
+  if (instructorId) { query += ' AND l.instructor_id = ?'; params.push(instructorId); }
+  query += ' ORDER BY l.start_time, i.name';
+
+  const lessons = db.prepare(query).all(...params);
 
   const vehicleStats = db.prepare(`
     SELECT license_type,
@@ -28,13 +33,10 @@ router.get('/', (req: Request, res: Response) => {
     FROM vehicles GROUP BY license_type
   `).all() as { license_type: string; total: number; active: number }[];
 
-  const usedVehicles = db.prepare(`
-    SELECT DISTINCT vehicle_id FROM lessons
-    WHERE lesson_date = ? AND status IN ('予定', '完了')
-  `).all(date) as { vehicle_id: number }[];
+  const instructors = db.prepare(`SELECT id, name FROM instructors WHERE status = '在籍' ORDER BY name`).all();
 
   db.close();
-  res.render('schedule', { lessons, date, vehicleStats, usedVehicleIds: usedVehicles.map(r => r.vehicle_id) });
+  res.render('schedule', { lessons, date, vehicleStats, instructors, instructorId });
 });
 
 export default router;

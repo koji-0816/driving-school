@@ -24,7 +24,13 @@
             <%= student.status %>
           </span>
         </td></tr>
-        <tr><th>宿泊室</th><td><%= student.room_number ? `${student.room_number}号室` : '宿泊なし' %></td></tr>
+        <tr><th>区分</th><td>
+          <span class="badge <%= student.student_type === '合宿' ? 'badge-blue' : 'badge-green' %>"><%= student.student_type %></span>
+        </td></tr>
+        <tr><th>宿泊室</th><td><%= student.room_number ? `${student.room_number}号室` : student.student_type === '通学' ? '通学（宿泊なし）' : '—' %></td></tr>
+        <% if(student.student_type === '合宿') { %>
+        <tr><th>卒業予定</th><td><%= student.expected_graduation || '—' %></td></tr>
+        <% } %>
       </table>
     </div>
   </div>
@@ -56,6 +62,36 @@
   </div>
 
 </div>
+
+<% if(student.student_type === '通学') { %>
+<div class="card mb-4">
+  <div class="card-header">期限管理（通学生）</div>
+  <div class="card-body">
+    <%
+      function deadlineRow(label, startLabel, startDate, deadline, level) {
+        if (!startDate) return '';
+        const cls = level === 'expired' ? '#fee2e2' : level === 'warn' ? '#fff7ed' : '#f0fdf4';
+        const mark = level === 'expired' ? '⚠️ 期限切れ' : level === 'warn' ? '⚠️ 残り30日以内' : '✓ 有効';
+        return `<tr style="background:${cls}">
+          <td style="padding:10px 12px;font-weight:600">${label}</td>
+          <td style="padding:10px 12px">${startLabel}：${startDate}</td>
+          <td style="padding:10px 12px;font-weight:600">${deadline}</td>
+          <td style="padding:10px 12px">${mark}</td>
+        </tr>`;
+      }
+    %>
+    <table>
+      <tr><th>種別</th><th>起算日</th><th>期限日</th><th>状態</th></tr>
+      <%- deadlineRow('教習期限（9ヶ月）', '最初の教習日', student.lesson_start_date, lessonDeadline, lessonLevel) %>
+      <%- deadlineRow('仮免期限（6ヶ月）', '仮免取得日', student.provisional_license_date, provLicDeadline, provLicLevel) %>
+      <%- deadlineRow('卒検期限（3ヶ月）', '第二段階修了日', student.stage2_complete_date, stage2Deadline, stage2Level) %>
+      <% if(!student.lesson_start_date && !student.provisional_license_date && !student.stage2_complete_date) { %>
+      <tr><td colspan="4" class="text-muted" style="padding:12px">起算日が未登録のため計算できません</td></tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+<% } %>
 
 <div class="card">
   <div class="card-header">教習履歴（直近20件）</div>
