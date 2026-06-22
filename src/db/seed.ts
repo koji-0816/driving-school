@@ -26,27 +26,40 @@ export function seedDb(): void {
   insFac.run('シミュレーターB', 'シミュレーター', '普通車', 1, '使用可');
 
   // 宿泊施設
-  const insAccom = db.prepare(`INSERT INTO accommodations (name,total_rooms,status) VALUES (?,?,?)`);
-  insAccom.run('第1寮', 40, '使用可');
-  insAccom.run('第2寮', 20, '使用可');
+  const insAccom = db.prepare(`INSERT INTO accommodations (name,status) VALUES (?,?)`);
+  insAccom.run('第1寮', '使用可');
+  insAccom.run('第2寮', '使用可');
+
+  // 部屋（施設ID 1=第1寮, 2=第2寮）
+  const insRoom = db.prepare(`INSERT INTO rooms (accommodation_id,room_name,capacity,status) VALUES (?,?,?,?)`);
+  // 第1寮
+  insRoom.run(1,'101号室',2,'使用可');  // id=1
+  insRoom.run(1,'102号室',2,'使用可');  // id=2
+  insRoom.run(1,'103号室',1,'使用可');  // id=3
+  insRoom.run(1,'201号室',3,'使用可');  // id=4
+  insRoom.run(1,'202号室',2,'使用可');  // id=5
+  // 第2寮
+  insRoom.run(2,'101号室',2,'使用可');  // id=6
+  insRoom.run(2,'102号室',2,'使用可');  // id=7
+  insRoom.run(2,'201号室',2,'使用可');  // id=8
 
   // 生徒（合宿）
   const insStd = db.prepare(`
-    INSERT INTO students (name,kana,phone,email,license_type,student_type,enrollment_date,expected_graduation,lesson_start_date,provisional_license_date,stage2_complete_date,status,accommodation_id,room_number)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    INSERT INTO students (name,kana,phone,email,license_type,student_type,enrollment_date,expected_graduation,lesson_start_date,provisional_license_date,stage2_complete_date,status,room_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
   `);
-  insStd.run('山田 太郎','ヤマダ タロウ','090-1111-0001','taro@example.com','普通車','合宿','2026-06-01','2026-07-15','2026-06-02',null,null,'在校',1,'101');
-  insStd.run('中村 明美','ナカムラ アケミ','090-1111-0002','akemi@example.com','普通車','合宿','2026-06-01','2026-07-15','2026-06-02',null,null,'在校',1,'102');
-  insStd.run('小林 健太','コバヤシ ケンタ','090-1111-0003','kenta@example.com','二輪','合宿','2026-06-05','2026-07-10','2026-06-06',null,null,'在校',1,'201');
-  insStd.run('加藤 さくら','カトウ サクラ','090-1111-0004','sakura@example.com','普通車','合宿','2026-06-10','2026-07-25','2026-06-11',null,null,'在校',2,'101');
-  insStd.run('吉田 大輔','ヨシダ ダイスケ','090-1111-0005','daisuke@example.com','大型','合宿','2026-06-10','2026-07-30','2026-06-11',null,null,'在校',2,'102');
-  insStd.run('渡辺 愛','ワタナベ アイ','090-1111-0006','ai@example.com','普通車','合宿','2026-05-01','2026-06-15','2026-05-02','2026-05-20','2026-06-10','卒業',null,null);
-  insStd.run('松本 隆','マツモト タカシ','090-1111-0007','takashi@example.com','普通車','合宿','2026-06-15','2026-07-31','2026-06-16',null,null,'在校',1,'103');
-  insStd.run('井上 美咲','イノウエ ミサキ','090-1111-0008','misaki@example.com','普通車','合宿','2026-06-15','2026-07-31','2026-06-16',null,null,'在校',2,'201');
+  insStd.run('山田 太郎','ヤマダ タロウ','090-1111-0001','taro@example.com','普通車','合宿','2026-06-01','2026-07-15','2026-06-02',null,null,'在校',1);
+  insStd.run('中村 明美','ナカムラ アケミ','090-1111-0002','akemi@example.com','普通車','合宿','2026-06-01','2026-07-15','2026-06-02',null,null,'在校',2);
+  insStd.run('小林 健太','コバヤシ ケンタ','090-1111-0003','kenta@example.com','二輪','合宿','2026-06-05','2026-07-10','2026-06-06',null,null,'在校',4);
+  insStd.run('加藤 さくら','カトウ サクラ','090-1111-0004','sakura@example.com','普通車','合宿','2026-06-10','2026-07-25','2026-06-11',null,null,'在校',6);
+  insStd.run('吉田 大輔','ヨシダ ダイスケ','090-1111-0005','daisuke@example.com','大型','合宿','2026-06-10','2026-07-30','2026-06-11',null,null,'在校',7);
+  insStd.run('渡辺 愛','ワタナベ アイ','090-1111-0006','ai@example.com','普通車','合宿','2026-05-01','2026-06-15','2026-05-02','2026-05-20','2026-06-10','卒業',null);
+  insStd.run('松本 隆','マツモト タカシ','090-1111-0007','takashi@example.com','普通車','合宿','2026-06-15','2026-07-31','2026-06-16',null,null,'在校',3);
+  insStd.run('井上 美咲','イノウエ ミサキ','090-1111-0008','misaki@example.com','普通車','合宿','2026-06-15','2026-07-31','2026-06-16',null,null,'在校',8);
   // 通学生
-  insStd.run('田村 誠','タムラ マコト','090-2222-0001','makoto@example.com','普通車','通学','2025-10-01',null,'2025-10-15','2025-12-01',null,'在校',null,null);
-  insStd.run('西村 彩香','ニシムラ アヤカ','090-2222-0002','ayaka@example.com','普通車','通学','2026-04-01',null,'2026-04-10',null,null,'在校',null,null);
-  insStd.run('森田 拓海','モリタ タクミ','090-2222-0003','takumi@example.com','普通車','通学','2026-01-10',null,'2026-01-20','2026-03-15','2026-05-30','在校',null,null);
+  insStd.run('田村 誠','タムラ マコト','090-2222-0001','makoto@example.com','普通車','通学','2025-10-01',null,'2025-10-15','2025-12-01',null,'在校',null);
+  insStd.run('西村 彩香','ニシムラ アヤカ','090-2222-0002','ayaka@example.com','普通車','通学','2026-04-01',null,'2026-04-10',null,null,'在校',null);
+  insStd.run('森田 拓海','モリタ タクミ','090-2222-0003','takumi@example.com','普通車','通学','2026-01-10',null,'2026-01-20','2026-03-15','2026-05-30','在校',null);
 
   // 教習（facility_id=1〜3が普通車）
   const insLesson = db.prepare(`INSERT INTO lessons (student_id,instructor_id,facility_id,lesson_date,start_time,end_time,lesson_type,stage,status) VALUES (?,?,?,?,?,?,?,?,?)`);

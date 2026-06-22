@@ -1,0 +1,51 @@
+<%- include('../partials/layout-start', { title: room.room_name + ' の編集', current: 'accommodation' }) %>
+
+<a href="/accommodation/<%= accommodation.id %>" class="text-muted" style="font-size:13px">← <%= accommodation.name %> に戻る</a>
+
+<div class="card mt-4" style="max-width:480px">
+  <div class="card-header">部屋情報の編集</div>
+  <div class="card-body">
+
+    <% if(error) { %>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">⚠️ <%= error %></div>
+    <% } %>
+
+    <form method="post" action="/accommodation/<%= accommodation.id %>/rooms/<%= room.id %>/edit">
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">部屋名 <span style="color:#dc2626">*</span></label>
+        <input type="text" name="room_name" value="<%= room.room_name %>" required
+               style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">定員</label>
+        <input type="number" name="capacity" value="<%= room.capacity %>" min="1" max="10"
+               style="width:100px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        <span class="text-muted" style="margin-left:8px">名</span>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">ステータス</label>
+        <select name="status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          <% ['使用可','使用不可'].forEach(s => { %>
+            <option value="<%= s %>" <%= room.status === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">備考</label>
+        <input type="text" name="note" value="<%= room.note || '' %>"
+               style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-primary">更新する</button>
+        <a href="/accommodation/<%= accommodation.id %>" class="btn btn-secondary">キャンセル</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

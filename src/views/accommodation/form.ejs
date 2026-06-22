@@ -7,9 +7,7 @@
   <div class="card-body">
 
     <% if(error) { %>
-    <div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">
-      ⚠️ <%= error %>
-    </div>
+    <div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">⚠️ <%= error %></div>
     <% } %>
 
     <form method="post" action="<%= accommodation ? '/accommodation/' + accommodation.id + '/edit' : '/accommodation' %>">
@@ -19,12 +17,6 @@
         <input type="text" name="name" value="<%= accommodation ? accommodation.name : '' %>" required
                style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px"
                placeholder="例: 第1寮">
-      </div>
-
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">総部屋数 <span style="color:#dc2626">*</span></label>
-        <input type="number" name="total_rooms" value="<%= accommodation ? accommodation.total_rooms : '' %>" required min="1"
-               style="width:120px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
       </div>
 
       <div style="margin-bottom:14px">
@@ -42,11 +34,16 @@
                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;resize:vertical"><%= accommodation ? accommodation.note || '' : '' %></textarea>
       </div>
 
+      <% if(accommodation) { %>
+      <p class="text-muted" style="font-size:12px;margin-bottom:16px">
+        部屋の登録・編集は <a href="/accommodation/<%= accommodation.id %>">施設詳細ページ</a> から行えます。
+      </p>
+      <% } %>
+
       <div style="display:flex;gap:10px">
         <button type="submit" class="btn btn-primary"><%= accommodation ? '更新する' : '登録する' %></button>
         <a href="/accommodation" class="btn btn-secondary">キャンセル</a>
       </div>
-
     </form>
   </div>
 </div>

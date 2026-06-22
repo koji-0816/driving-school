@@ -1,0 +1,78 @@
+<%- include('../partials/layout-start', { title: accommodation.name, current: 'accommodation' }) %>
+
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+  <a href="/accommodation" class="text-muted" style="font-size:13px">← 宿泊管理に戻る</a>
+  <a href="/accommodation/<%= accommodation.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 12px">施設編集</a>
+</div>
+
+<% if(error) { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">⚠️ <%= error %></div>
+<% } %>
+
+<!-- 部屋一覧 -->
+<div class="card mb-4">
+  <div class="card-header">部屋一覧（<%= rooms.length %> 室）</div>
+  <div class="card-body">
+    <% if(rooms.length === 0) { %>
+      <p class="text-muted">部屋が登録されていません</p>
+    <% } else { %>
+    <table>
+      <tr><th>部屋名</th><th>定員</th><th>使用中</th><th>空き</th><th>ステータス</th><th>備考</th><th></th></tr>
+      <% for(const r of rooms) { %>
+      <tr>
+        <td><%= r.room_name %></td>
+        <td><%= r.capacity %> 名</td>
+        <td><%= r.occupied %> 名</td>
+        <td>
+          <% const available = r.capacity - r.occupied; %>
+          <span class="badge <%= available <= 0 ? 'badge-red' : available <= 1 ? 'badge-orange' : 'badge-green' %>">
+            <%= available %> 名
+          </span>
+        </td>
+        <td><span class="badge <%= r.status === '使用可' ? 'badge-green' : 'badge-gray' %>"><%= r.status %></span></td>
+        <td class="text-muted"><%= r.note || '—' %></td>
+        <td><a href="/accommodation/<%= accommodation.id %>/rooms/<%= r.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">編集</a></td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<!-- 部屋追加フォーム -->
+<div class="card" style="max-width:560px">
+  <div class="card-header">部屋を追加する</div>
+  <div class="card-body">
+    <form method="post" action="/accommodation/<%= accommodation.id %>/rooms"
+          style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">部屋名 <span style="color:#dc2626">*</span></label>
+        <input type="text" name="room_name" required placeholder="例: 101号室"
+               style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">定員</label>
+        <input type="number" name="capacity" value="2" min="1" max="10"
+               style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">ステータス</label>
+        <select name="status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          <% ['使用可','使用不可'].forEach(s => { %>
+            <option value="<%= s %>"><%= s %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">備考</label>
+        <input type="text" name="note" placeholder="例: バス・トイレ付き"
+               style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+      </div>
+      <div style="grid-column:1/-1">
+        <button type="submit" class="btn btn-primary">追加する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

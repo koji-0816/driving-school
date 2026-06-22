@@ -50,36 +50,45 @@ router.get('/', (req: Request, res: Response) => {
   res.render('students/index', { students, countMap, status, license, type });
 });
 
+function getRooms(db: ReturnType<typeof getDb>) {
+  return db.prepare(`
+    SELECT r.*, a.name as accommodation_name
+    FROM rooms r JOIN accommodations a ON r.accommodation_id = a.id
+    WHERE r.status = '使用可'
+    ORDER BY a.id, r.room_name
+  `).all() as { id: number; accommodation_id: number; accommodation_name: string; room_name: string; capacity: number }[];
+}
+
 // 新規登録フォーム
 router.get('/new', (_req: Request, res: Response) => {
   const db = getDb();
-  const accommodations = db.prepare(`SELECT * FROM accommodations WHERE status = '使用可'`).all();
+  const rooms = getRooms(db);
   db.close();
-  res.render('students/form', { student: null, accommodations, error: null });
+  res.render('students/form', { student: null, rooms, error: null });
 });
 
 // 新規登録処理
 router.post('/', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
-          status, accommodation_id, room_number, note } = req.body;
+          status, room_id, note } = req.body;
 
   if (!name || !kana || !enrollment_date) {
     const db = getDb();
-    const accommodations = db.prepare(`SELECT * FROM accommodations WHERE status = '使用可'`).all();
+    const rooms = getRooms(db);
     db.close();
-    return res.render('students/form', { student: null, accommodations, error: '氏名・フリガナ・入校日は必須です' });
+    return res.render('students/form', { student: null, rooms, error: '氏名・フリガナ・入校日は必須です' });
   }
 
   const db = getDb();
   db.prepare(`
     INSERT INTO students (name,kana,phone,email,license_type,student_type,enrollment_date,expected_graduation,
-      lesson_start_date,provisional_license_date,stage2_complete_date,status,accommodation_id,room_number,note)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      lesson_start_date,provisional_license_date,stage2_complete_date,status,room_id,note)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     name, kana, phone||null, email||null, license_type, student_type, enrollment_date,
     expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
-    stage2_complete_date||null, status, accommodation_id||null, room_number||null, note||null
+    stage2_complete_date||null, status, room_id||null, note||null
   );
   db.close();
   res.redirect('/students');
@@ -88,7 +97,13 @@ router.post('/', (req: Request, res: Response) => {
 // 詳細
 router.get('/:id', (req: Request, res: Response) => {
   const db = getDb();
-  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id) as Record<string, string | null> | undefined;
+  const student = db.prepare(`
+    SELECT s.*, r.room_name, a.name as accommodation_name
+    FROM students s
+    LEFT JOIN rooms r ON s.room_id = r.id
+    LEFT JOIN accommodations a ON r.accommodation_id = a.id
+    WHERE s.id = ?
+  `).get(req.params.id) as Record<string, string | null> | undefined;
   if (!student) { db.close(); res.status(404).render('error', { message: '生徒が見つかりません' }); return; }
 
   const lessons = db.prepare(`
@@ -122,35 +137,35 @@ router.get('/:id/edit', (req: Request, res: Response) => {
   const db = getDb();
   const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
   if (!student) { db.close(); res.status(404).render('error', { message: '生徒が見つかりません' }); return; }
-  const accommodations = db.prepare(`SELECT * FROM accommodations WHERE status = '使用可'`).all();
+  const rooms = getRooms(db);
   db.close();
-  res.render('students/form', { student, accommodations, error: null });
+  res.render('students/form', { student, rooms, error: null });
 });
 
 // 編集処理
 router.post('/:id/edit', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
-          status, accommodation_id, room_number, note } = req.body;
+          status, room_id, note } = req.body;
 
   if (!name || !kana || !enrollment_date) {
     const db2 = getDb();
-    const accommodations = db2.prepare(`SELECT * FROM accommodations WHERE status = '使用可'`).all();
+    const rooms = getRooms(db2);
     const student = db2.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
     db2.close();
-    return res.render('students/form', { student, accommodations, error: '氏名・フリガナ・入校日は必須です' });
+    return res.render('students/form', { student, rooms, error: '氏名・フリガナ・入校日は必須です' });
   }
 
   const db = getDb();
   db.prepare(`
     UPDATE students SET name=?,kana=?,phone=?,email=?,license_type=?,student_type=?,enrollment_date=?,
       expected_graduation=?,lesson_start_date=?,provisional_license_date=?,stage2_complete_date=?,
-      status=?,accommodation_id=?,room_number=?,note=?
+      status=?,room_id=?,note=?
     WHERE id=?
   `).run(
     name, kana, phone||null, email||null, license_type, student_type, enrollment_date,
     expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
-    stage2_complete_date||null, status, accommodation_id||null, room_number||null, note||null,
+    stage2_complete_date||null, status, room_id||null, note||null,
     req.params.id
   );
   db.close();

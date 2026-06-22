@@ -1,18 +1,5 @@
 <%- include('../partials/layout-start', { title: '宿泊管理', current: 'accommodation' }) %>
 
-<div class="grid-2 mb-4">
-  <% for(const a of accommodations) { %>
-  <div class="kpi">
-    <div class="kpi-value <%= (occupancyMap[a.id]||0) / a.total_rooms > 0.8 ? 'orange' : 'blue' %>">
-      <%= occupancyMap[a.id] || 0 %>/<%= a.total_rooms %>
-    </div>
-    <div class="kpi-label"><%= a.name %> 使用率
-      (<%= a.total_rooms > 0 ? Math.round((occupancyMap[a.id]||0)/a.total_rooms*100) : 0 %>%)
-    </div>
-  </div>
-  <% } %>
-</div>
-
 <div class="card mb-4">
   <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
     施設一覧
@@ -20,15 +7,25 @@
   </div>
   <div class="card-body">
     <table>
-      <tr><th>施設名</th><th>総部屋数</th><th>使用中</th><th>ステータス</th><th>備考</th><th></th></tr>
+      <tr><th>施設名</th><th>部屋数</th><th>収容定員</th><th>在室中</th><th>空き</th><th>ステータス</th><th>備考</th><th></th></tr>
       <% for(const a of accommodations) { %>
+      <% const occupied = occupancyMap[a.id] || 0; const available = a.total_capacity - occupied; %>
       <tr>
-        <td><%= a.name %></td>
+        <td><a href="/accommodation/<%= a.id %>"><%= a.name %></a></td>
         <td><%= a.total_rooms %> 室</td>
-        <td><%= occupancyMap[a.id] || 0 %> 室</td>
+        <td><%= a.total_capacity %> 名</td>
+        <td><%= occupied %> 名</td>
+        <td>
+          <span class="badge <%= available <= 0 ? 'badge-red' : available <= 2 ? 'badge-orange' : 'badge-green' %>">
+            <%= available %> 名
+          </span>
+        </td>
         <td><span class="badge <%= a.status === '使用可' ? 'badge-green' : 'badge-gray' %>"><%= a.status %></span></td>
         <td class="text-muted"><%= a.note || '—' %></td>
-        <td><a href="/accommodation/<%= a.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">編集</a></td>
+        <td>
+          <a href="/accommodation/<%= a.id %>" class="btn btn-secondary" style="font-size:12px;padding:4px 10px">詳細</a>
+          <a href="/accommodation/<%= a.id %>/edit" class="btn btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:4px">編集</a>
+        </td>
       </tr>
       <% } %>
     </table>
@@ -43,7 +40,7 @@
       <% for(const r of residents) { %>
       <tr>
         <td><%= r.accommodation_name %></td>
-        <td><%= r.room_number %>号室</td>
+        <td><%= r.room_name %></td>
         <td><a href="/students/<%= r.id %>"><%= r.name %></a></td>
         <td><span class="badge badge-blue"><%= r.license_type %></span></td>
         <td><%= r.enrollment_date %></td>

@@ -30,7 +30,7 @@
         <tr><th>区分</th><td>
           <span class="badge <%= student.student_type === '合宿' ? 'badge-blue' : 'badge-green' %>"><%= student.student_type %></span>
         </td></tr>
-        <tr><th>宿泊室</th><td><%= student.room_number ? `${student.room_number}号室` : student.student_type === '通学' ? '通学（宿泊なし）' : '—' %></td></tr>
+        <tr><th>宿泊室</th><td><%= student.room_name ? `${student.accommodation_name} ${student.room_name}` : student.student_type === '通学' ? '通学（宿泊なし）' : '—' %></td></tr>
         <% if(student.student_type === '合宿') { %>
         <tr><th>卒業予定</th><td><%= student.expected_graduation || '—' %></td></tr>
         <% } %>

@@ -25,8 +25,7 @@ export function initDb(): void {
       provisional_license_date TEXT,
       stage2_complete_date TEXT,
       status TEXT NOT NULL DEFAULT '在校',
-      accommodation_id INTEGER,
-      room_number TEXT,
+      room_id INTEGER,
       note TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
@@ -57,9 +56,18 @@ export function initDb(): void {
     CREATE TABLE IF NOT EXISTS accommodations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      total_rooms INTEGER NOT NULL,
       note TEXT,
       status TEXT NOT NULL DEFAULT '使用可'
+    );
+
+    CREATE TABLE IF NOT EXISTS rooms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accommodation_id INTEGER NOT NULL,
+      room_name TEXT NOT NULL,
+      capacity INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT '使用可',
+      note TEXT,
+      FOREIGN KEY (accommodation_id) REFERENCES accommodations(id)
     );
 
     CREATE TABLE IF NOT EXISTS lessons (
