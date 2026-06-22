@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユーザー選択 — 教習所管理システム</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #1e2a3a; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .select-wrap { width: 760px; }
+    .select-title { color: #fff; font-size: 22px; font-weight: bold; text-align: center; margin-bottom: 6px; }
+    .select-sub { color: #88aacc; font-size: 13px; text-align: center; margin-bottom: 32px; }
+    .role-section { margin-bottom: 24px; }
+    .role-label {
+      font-size: 11px; font-weight: bold; letter-spacing: 0.08em;
+      color: #88aacc; margin-bottom: 10px; text-transform: uppercase;
+    }
+    .user-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .user-card {
+      background: #253548; border: 2px solid #2e4060; border-radius: 10px;
+      padding: 14px 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      text-align: left;
+    }
+    .user-card:hover { border-color: #4a9eff; background: #1e3248; }
+    .user-card .name { font-size: 15px; font-weight: bold; color: #fff; margin-bottom: 4px; }
+    .user-card .kana { font-size: 11px; color: #557799; margin-bottom: 8px; }
+    .user-card .meta { font-size: 11px; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px;
+      font-weight: bold; margin-right: 4px;
+    }
+    .tag-admin { background: #1d4ed8; color: #fff; }
+    .tag-staff { background: #15803d; color: #fff; }
+    .tag-instructor { background: #b45309; color: #fff; }
+    .tag-student { background: #6d28d9; color: #fff; }
+    .tag-license { background: #334155; color: #94a3b8; }
+
+    .admin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    .admin-card {
+      background: #253548; border: 2px solid #2e4060; border-radius: 10px;
+      padding: 16px 20px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .admin-card:hover { border-color: #4a9eff; background: #1e3248; }
+    .admin-icon {
+      width: 40px; height: 40px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: bold; flex-shrink: 0;
+    }
+    .admin-card .name { font-size: 15px; font-weight: bold; color: #fff; }
+    .admin-card .desc { font-size: 12px; color: #557799; margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="select-wrap">
+  <div class="select-title">教習所管理システム</div>
+  <div class="select-sub">どのユーザーとして操作しますか？（プロトタイプ：認証なし）</div>
+
+  <!-- 管理者・職員 -->
+  <div class="role-section">
+    <div class="role-label">管理者 / 職員</div>
+    <div class="admin-row">
+      <form method="post" action="/select">
+        <input type="hidden" name="role" value="admin">
+        <input type="hidden" name="user_id" value="0">
+        <input type="hidden" name="user_name" value="管理者">
+        <button type="submit" class="admin-card" style="width:100%;background:#253548;border:2px solid #2e4060">
+          <div class="admin-icon" style="background:#1d4ed8">管</div>
+          <div>
+            <div class="name">管理者</div>
+            <div class="desc">全機能にアクセス可能</div>
+          </div>
+        </button>
+      </form>
+      <form method="post" action="/select">
+        <input type="hidden" name="role" value="staff">
+        <input type="hidden" name="user_id" value="0">
+        <input type="hidden" name="user_name" value="職員">
+        <button type="submit" class="admin-card" style="width:100%;background:#253548;border:2px solid #2e4060">
+          <div class="admin-icon" style="background:#15803d">職</div>
+          <div>
+            <div class="name">職員</div>
+            <div class="desc">スケジュール・予約枠管理</div>
+          </div>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 教員 -->
+  <div class="role-section">
+    <div class="role-label">教員</div>
+    <div class="user-grid">
+      <% for(const i of instructors) { %>
+      <form method="post" action="/select">
+        <input type="hidden" name="role" value="instructor">
+        <input type="hidden" name="user_id" value="<%= i.id %>">
+        <input type="hidden" name="user_name" value="<%= i.name %>">
+        <button type="submit" class="user-card" style="width:100%;border:none">
+          <div class="name"><%= i.name %></div>
+          <div class="kana"><%= i.kana %></div>
+          <div class="meta">
+            <span class="tag tag-instructor">教員</span>
+            <span class="tag tag-license"><%= i.qualifications %></span>
+          </div>
+        </button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- 生徒 -->
+  <div class="role-section">
+    <div class="role-label">生徒</div>
+    <div class="user-grid">
+      <% for(const s of students) { %>
+      <form method="post" action="/select">
+        <input type="hidden" name="role" value="student">
+        <input type="hidden" name="user_id" value="<%= s.id %>">
+        <input type="hidden" name="user_name" value="<%= s.name %>">
+        <button type="submit" class="user-card" style="width:100%;border:none">
+          <div class="name"><%= s.name %></div>
+          <div class="kana"><%= s.kana %></div>
+          <div class="meta">
+            <span class="tag tag-student"><%= s.student_type %></span>
+            <span class="tag tag-license"><%= s.license_type %></span>
+          </div>
+        </button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

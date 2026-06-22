@@ -15,70 +15,75 @@
     </div>
     <nav>
 
-      <%
-        const inGroup = (keys) => keys.some(k => current === k);
-      %>
+      <% const inGroup = (keys) => keys.some(k => current === k); %>
 
+      <% if(currentRole === 'admin') { %>
       <!-- 管理者 -->
-      <div class="nav-group role-admin <%= inGroup(['dashboard','students','instructors','facilities','accommodation','exams']) ? 'open' : '' %>">
+      <div class="nav-group role-admin open">
         <div class="nav-group-header" onclick="toggleNav(this)">
-          <span class="nav-role-icon">管</span>
-          管理者メニュー
+          <span class="nav-role-icon">管</span>管理者メニュー
           <span class="nav-toggle">▶</span>
         </div>
         <div class="nav-group-body">
-          <a href="/"             class="<%= current === 'dashboard'     ? 'active' : '' %>">ダッシュボード</a>
-          <a href="/students"     class="<%= current === 'students'      ? 'active' : '' %>">生徒管理</a>
-          <a href="/instructors"  class="<%= current === 'instructors'   ? 'active' : '' %>">教官管理</a>
-          <a href="/facilities"   class="<%= current === 'facilities'    ? 'active' : '' %>">設備管理</a>
-          <a href="/accommodation" class="<%= current === 'accommodation' ? 'active' : '' %>">宿泊管理</a>
-          <a href="/exams"        class="<%= current === 'exams'         ? 'active' : '' %>">検定管理</a>
+          <a href="/"              class="<%= current==='dashboard'     ?'active':'' %>">ダッシュボード</a>
+          <a href="/students"      class="<%= current==='students'      ?'active':'' %>">生徒管理</a>
+          <a href="/instructors"   class="<%= current==='instructors'   ?'active':'' %>">教官管理</a>
+          <a href="/facilities"    class="<%= current==='facilities'    ?'active':'' %>">設備管理</a>
+          <a href="/accommodation" class="<%= current==='accommodation' ?'active':'' %>">宿泊管理</a>
+          <a href="/exams"         class="<%= current==='exams'         ?'active':'' %>">検定管理</a>
+          <a href="/schedule"      class="<%= current==='schedule'      ?'active':'' %>">配車スケジュール</a>
+          <a href="/reservations/admin" class="<%= current==='reservations'?'active':'' %>">予約枠管理</a>
         </div>
       </div>
 
+      <% } else if(currentRole === 'staff') { %>
       <!-- 職員 -->
-      <div class="nav-group role-staff <%= inGroup(['schedule','reservations']) ? 'open' : '' %>">
+      <div class="nav-group role-staff open">
         <div class="nav-group-header" onclick="toggleNav(this)">
-          <span class="nav-role-icon">職</span>
-          職員メニュー
+          <span class="nav-role-icon">職</span>職員メニュー
           <span class="nav-toggle">▶</span>
         </div>
         <div class="nav-group-body">
-          <a href="/schedule"          class="<%= current === 'schedule'     ? 'active' : '' %>">配車スケジュール</a>
-          <a href="/reservations/admin" class="<%= current === 'reservations' ? 'active' : '' %>">予約枠管理</a>
+          <a href="/schedule"           class="<%= current==='schedule'     ?'active':'' %>">配車スケジュール</a>
+          <a href="/reservations/admin" class="<%= current==='reservations' ?'active':'' %>">予約枠管理</a>
+          <a href="/students"           class="<%= current==='students'     ?'active':'' %>">生徒一覧</a>
         </div>
       </div>
 
+      <% } else if(currentRole === 'instructor') { %>
       <!-- 教員 -->
-      <div class="nav-group role-instructor">
+      <div class="nav-group role-instructor open">
         <div class="nav-group-header" onclick="toggleNav(this)">
-          <span class="nav-role-icon">教</span>
-          教員メニュー
+          <span class="nav-role-icon">教</span><%= currentUserName %>
           <span class="nav-toggle">▶</span>
         </div>
         <div class="nav-group-body">
-          <a href="/schedule">自分のスケジュール</a>
-          <a href="/exams">検定（試験官）</a>
+          <a href="/instructors/<%= currentUserId %>"               class="<%= current==='instructors'?'active':'' %>">自分のプロフィール</a>
+          <a href="/schedule?instructor_id=<%= currentUserId %>"    class="<%= current==='schedule'   ?'active':'' %>">自分のスケジュール</a>
+          <a href="/exams"                                           class="<%= current==='exams'      ?'active':'' %>">検定（試験官）</a>
         </div>
       </div>
 
+      <% } else if(currentRole === 'student') { %>
       <!-- 生徒 -->
-      <div class="nav-group role-student">
+      <div class="nav-group role-student open">
         <div class="nav-group-header" onclick="toggleNav(this)">
-          <span class="nav-role-icon">生</span>
-          生徒メニュー
+          <span class="nav-role-icon">生</span><%= currentUserName %>
           <span class="nav-toggle">▶</span>
         </div>
         <div class="nav-group-body">
-          <a href="/reservations/book/1">空き枠・予約</a>
-          <a href="/reservations/my/1">自分の予約</a>
-          <a href="/students/1">教習進捗</a>
+          <a href="/students/<%= currentUserId %>"               class="<%= current==='students'     ?'active':'' %>">教習進捗</a>
+          <a href="/reservations/book/<%= currentUserId %>"      class="<%= current==='reservations' ?'active':'' %>">空き枠・予約</a>
+          <a href="/reservations/my/<%= currentUserId %>">自分の予約一覧</a>
         </div>
       </div>
+      <% } %>
 
-      <!-- 共通 -->
-      <a href="/help" class="<%= current === 'help' ? 'active' : '' %>"
-         style="margin-top:8px;border-top:1px solid #253548;padding-top:10px;font-size:12px;color:#557799">
+      <!-- 共通フッター -->
+      <a href="/select" style="display:block;padding:10px 16px;font-size:11px;color:#557799;border-top:1px solid #253548;margin-top:8px">
+        ⇄ ユーザー切り替え
+      </a>
+      <a href="/help" class="<%= current==='help'?'active':'' %>" style="font-size:12px;color:#557799">
         操作ガイド
       </a>
 
@@ -87,13 +92,17 @@
   <div class="main">
     <div class="topbar">
       <h1><%= title %></h1>
-      <span class="date"><%= new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }) %></span>
+      <div style="display:flex;align-items:center;gap:16px">
+        <span style="font-size:12px;color:#888">
+          <%= currentUserName %>（<%= currentRole === 'admin' ? '管理者' : currentRole === 'staff' ? '職員' : currentRole === 'instructor' ? '教員' : '生徒' %>）
+        </span>
+        <span class="date"><%= new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' }) %></span>
+      </div>
     </div>
     <div class="content">
 
 <script>
 function toggleNav(header) {
-  const group = header.closest('.nav-group');
-  group.classList.toggle('open');
+  header.closest('.nav-group').classList.toggle('open');
 }
 </script>
