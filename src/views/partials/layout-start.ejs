@@ -91,7 +91,12 @@
   </div>
   <div class="main">
     <div class="topbar">
-      <h1><%= title %></h1>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="toggleSidebar()" aria-label="メニュー">
+          <span></span><span></span><span></span>
+        </button>
+        <h1><%= title %></h1>
+      </div>
       <div style="display:flex;align-items:center;gap:16px">
         <span style="font-size:12px;color:#888">
           <%= currentUserName %>（<%= currentRole === 'admin' ? '管理者' : currentRole === 'staff' ? '職員' : currentRole === 'instructor' ? '教員' : '生徒' %>）
@@ -101,8 +106,14 @@
     </div>
     <div class="content">
 
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
 <script>
 function toggleNav(header) {
   header.closest('.nav-group').classList.toggle('open');
+}
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('open');
 }
 </script>

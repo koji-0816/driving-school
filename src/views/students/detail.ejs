@@ -150,4 +150,114 @@
   </div>
 </div>
 
+
+<% if(progress && progress.length > 0) { %>
+<%
+  // 表示用に段階×種別でグループ化
+  const groups = [
+    { stage: 1, type: '学科', label: '第一段階 — 学科' },
+    { stage: 1, type: '技能', label: '第一段階 — 技能' },
+    { stage: 1, type: '検定', label: '第一段階 — 検定' },
+    { stage: 2, type: '学科', label: '第二段階 — 学科' },
+    { stage: 2, type: '技能', label: '第二段階 — 技能' },
+    { stage: 2, type: '検定', label: '第二段階 — 検定' },
+  ];
+
+  const today2 = new Date().toISOString().split('T')[0];
+
+  function statusBadge(s) {
+    if (s === 'completed') return '<span class="badge badge-green">受講済</span>';
+    if (s === 'available') return '<span class="badge badge-blue">受講可</span>';
+    return '<span class="badge badge-gray">受講不可</span>';
+  }
+%>
+
+<div class="card mb-4">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+    カリキュラム進捗
+    <% if(currentRole === 'admin' || currentRole === 'instructor') { %>
+    <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('record-panel').classList.toggle('hidden')">
+      + 受講記録を登録
+    </button>
+    <% } %>
+  </div>
+
+  <%# 受講記録フォーム（admin/instructor のみ） %>
+  <% if(currentRole === 'admin' || currentRole === 'instructor') { %>
+  <div id="record-panel" class="hidden" style="padding:16px 20px;border-bottom:1px solid #f0f2f5;background:#f8fafc">
+    <form method="post" action="/students/<%= student.id %>/record-lesson" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">科目</label>
+        <select name="lesson_master_id" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:220px">
+          <option value="">— 科目を選択 —</option>
+          <% for(const p of availableForRecord) { %>
+          <option value="<%= p.lesson.id %>">
+            [<%= p.lesson.stage === 1 ? '第一' : '第二' %>段階 / <%= p.lesson.lesson_type %>]
+            <%= p.lesson.code %> <%= p.lesson.name %>
+            <% if(p.status === 'completed') { %>(完了済み)<% } %>
+          </option>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">受講日</label>
+        <input type="date" name="lesson_date" value="<%= today2 %>" required
+          style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">担当教官</label>
+        <select name="instructor_id" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+          <option value="">— 選択 —</option>
+          <% for(const inst of instructors) { %>
+          <option value="<%= inst.id %>" <%= currentRole === 'instructor' && currentUserId == inst.id ? 'selected' : '' %>>
+            <%= inst.name %>
+          </option>
+          <% } %>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="height:34px">登録</button>
+    </form>
+  </div>
+  <% } %>
+
+  <div class="card-body" style="padding:12px 20px">
+    <% for(const g of groups) {
+      const items = progress.filter(p => p.lesson.stage === g.stage && p.lesson.lesson_type === g.type);
+      if(items.length === 0) continue;
+      const doneCount  = items.filter(p => p.status === 'completed').length;
+    %>
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:0.05em"><%= g.label %></span>
+        <span style="font-size:11px;color:#9ca3af"><%= doneCount %> / <%= items.length %> 完了</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <% for(const p of items) { %>
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:7px 0;width:80px"><%- statusBadge(p.status) %></td>
+          <td style="padding:7px 4px;font-size:12px;color:#9ca3af;white-space:nowrap"><%= p.lesson.code %></td>
+          <td style="padding:7px 8px;font-size:13px;color:<%= p.status === 'locked' ? '#9ca3af' : '#1e2a3a' %>">
+            <%= p.lesson.name %>
+            <% if(p.lesson.required_count > 1) { %>
+            <span style="font-size:11px;color:#9ca3af">（<%= p.completedCount %>/<%= p.lesson.required_count %>時限）</span>
+            <% } %>
+          </td>
+          <td style="padding:7px 0;font-size:11px;color:#ef4444">
+            <% if(p.status === 'locked') { %>
+            <% for(const reason of p.blockedBy) { %><div>🔒 <%= reason %></div><% } %>
+            <% } %>
+          </td>
+        </tr>
+        <% } %>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<style>
+.hidden { display: none !important; }
+</style>
+
 <%- include('../partials/layout-end') %>

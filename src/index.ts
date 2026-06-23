@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import session from 'express-session';
 import { initDb } from './db/schema';
-import { seedDb } from './db/seed';
+import { seedDb, seedCurriculum } from './db/seed';
 import dashboardRouter from './routes/dashboard';
 import studentsRouter from './routes/students';
 import instructorsRouter from './routes/instructors';
@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 
 initDb();
 seedDb();
+seedCurriculum();
 
 app.use('/', dashboardRouter);
 app.use('/students', studentsRouter);

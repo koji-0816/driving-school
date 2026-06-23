@@ -5,7 +5,7 @@ import {
   SQL_STUDENT_INSERT, SQL_STUDENT_UPDATE,
   SQL_ROOMS_FOR_STUDENT_FORM,
   SQL_INSTRUCTOR_SCHEDULE,
-  recordStudentChanges, logStudentEvent,
+  recordStudentChanges, logStudentEvent, buildCurriculumProgress,
 } from '../db/queries';
 
 const router = Router();
@@ -159,10 +159,46 @@ router.get('/:id', (req: Request, res: Response) => {
     const stageMap: Record<string, number> = {};
     for (const row of lessonCounts) stageMap[row.stage] = row.c;
 
-    res.render('students/detail', { student, lessons, exams, stageMap, events, ...calcDeadlines(student) });
+    // lesson_master が未投入の場合は空配列（普通MT以外も同様）
+    const licenseType = (student['license_type'] as string) || '普通MT';
+    const progress = buildCurriculumProgress(db, String(req.params.id), licenseType);
+
+    // 受講記録登録用：受講可能科目の一覧
+    const availableForRecord = progress.filter(p => p.status !== 'locked');
+
+    const instructors = db.prepare(
+      "SELECT id, name FROM instructors WHERE status = '在籍' ORDER BY id"
+    ).all() as { id: number; name: string }[];
+
+    res.render('students/detail', {
+      student, lessons, exams, stageMap, events,
+      progress, availableForRecord, instructors,
+      ...calcDeadlines(student),
+    });
   } finally {
     db.close();
   }
+});
+
+// 受講記録登録
+router.post('/:id/record-lesson', (req: Request, res: Response) => {
+  const { lesson_master_id, lesson_date, instructor_id, note } = req.body;
+  if (!lesson_master_id || !lesson_date) {
+    return res.redirect(`/students/${req.params.id}?error=科目と日付は必須です`);
+  }
+  const db = getDb();
+  try {
+    db.prepare(`
+      INSERT INTO student_lesson_records (student_id, lesson_master_id, lesson_date, instructor_id, status, note)
+      VALUES (?, ?, ?, ?, '完了', ?)
+    `).run(req.params.id, lesson_master_id, lesson_date, instructor_id || null, note || null);
+
+    const lm = db.prepare('SELECT code, name FROM lesson_master WHERE id = ?').get(lesson_master_id) as { code: string; name: string } | undefined;
+    logStudentEvent(String(req.params.id), 'lesson_completed', `受講完了: ${lm?.name || lesson_master_id}（${lesson_date}）`);
+  } finally {
+    db.close();
+  }
+  res.redirect(`/students/${req.params.id}?success=1`);
 });
 
 // 編集フォーム

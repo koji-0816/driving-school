@@ -157,6 +157,55 @@ export function initDb(): void {
         FOREIGN KEY (student_id) REFERENCES students(id),
         FOREIGN KEY (examiner_id) REFERENCES instructors(id)
       );
+
+      -- 教習科目マスター（法令で定められた科目定義）
+      CREATE TABLE IF NOT EXISTS lesson_master (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_type TEXT NOT NULL DEFAULT '普通MT',
+        stage       INTEGER NOT NULL,          -- 1=第一段階 / 2=第二段階
+        lesson_type TEXT NOT NULL,             -- '技能' / '学科'
+        code        TEXT NOT NULL,             -- '技能-1' / '学科-①' 等
+        name        TEXT NOT NULL,
+        required_count INTEGER NOT NULL DEFAULT 1,  -- 必要時限数
+        note        TEXT,
+        sort_order  INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(license_type, code)
+      );
+
+      -- 前後関係ルール（1科目に複数条件を縦持ち）
+      -- 同じ rule_group_id の条件はすべてAND（全充足で受講可）
+      CREATE TABLE IF NOT EXISTS curriculum_rules (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        lesson_master_id INTEGER NOT NULL,    -- この科目を受けるための条件
+        rule_type    TEXT NOT NULL DEFAULT 'legal',  -- 'legal'=法定 / 'local'=教習所独自
+        rule_group_id INTEGER NOT NULL,       -- 同グループの条件はAND
+        condition_type  TEXT NOT NULL,
+        -- 'lesson_completed'  : 特定科目を完了していること
+        -- 'lesson_count_min'  : 特定科目をN時限以上完了していること
+        -- 'exam_passed'       : 特定試験に合格していること
+        -- 'stage_cleared'     : 前段階を修了していること
+        condition_value TEXT NOT NULL,        -- lesson_master.code / 試験名 / ステージ番号
+        condition_min   INTEGER,              -- lesson_count_min 用
+        note         TEXT,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id)
+      );
+
+      -- 生徒の受講履歴（INSERT中心・UPDATE禁止）
+      CREATE TABLE IF NOT EXISTS student_lesson_records (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id      INTEGER NOT NULL,
+        lesson_master_id INTEGER NOT NULL,
+        lesson_date     TEXT NOT NULL,
+        instructor_id   INTEGER,
+        status          TEXT NOT NULL DEFAULT '完了',  -- '完了' / 'キャンセル'
+        note            TEXT,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (student_id)       REFERENCES students(id),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id),
+        FOREIGN KEY (instructor_id)    REFERENCES instructors(id)
+      );
     `);
   } finally {
     db.close();

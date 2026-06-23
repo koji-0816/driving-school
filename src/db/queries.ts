@@ -154,6 +154,135 @@ export const SQL_DASHBOARD_UPCOMING_EXAMS = `
 `;
 
 // ────────────────────────────────────────────────────────────
+// Curriculum
+// ────────────────────────────────────────────────────────────
+
+export interface LessonMaster {
+  id: number; license_type: string; stage: number; lesson_type: string;
+  code: string; name: string; required_count: number; note: string | null; sort_order: number;
+}
+
+export interface CurriculumRule {
+  id: number; lesson_master_id: number; rule_type: string; rule_group_id: number;
+  condition_type: string; condition_value: string; condition_min: number | null; note: string | null;
+}
+
+export interface LessonProgress {
+  lesson: LessonMaster;
+  status: 'completed' | 'available' | 'locked';
+  completedCount: number;
+  blockedBy: string[];
+}
+
+/** 試験テーブルの exam_type → lesson_master.code のマッピング */
+const EXAM_TYPE_TO_CODE: Record<string, string> = {
+  '仮免':     '検定-仮免',
+  '修了検定': '検定-仮免',
+  '卒業検定': '検定-卒業',
+};
+
+/**
+ * 生徒のカリキュラム進捗を計算する。
+ * 返り値の各要素に status: 'completed'|'available'|'locked' を付与。
+ */
+export function buildCurriculumProgress(
+  db: ReturnType<typeof getDb>,
+  studentId: string | number,
+  licenseType: string
+): LessonProgress[] {
+  const lessonMasters = db.prepare(
+    'SELECT * FROM lesson_master WHERE license_type = ? ORDER BY stage, sort_order'
+  ).all(licenseType) as LessonMaster[];
+
+  if (lessonMasters.length === 0) return [];
+
+  // 受講記録（科目ごとの完了回数）
+  const records = db.prepare(`
+    SELECT slr.lesson_master_id, lm.code, lm.lesson_type, lm.stage, COUNT(*) as cnt
+    FROM student_lesson_records slr
+    JOIN lesson_master lm ON slr.lesson_master_id = lm.id
+    WHERE slr.student_id = ? AND slr.status = '完了'
+    GROUP BY slr.lesson_master_id
+  `).all(studentId) as { lesson_master_id: number; code: string; lesson_type: string; stage: number; cnt: number }[];
+
+  // 科目ごとの完了回数マップ
+  const completedById: Record<number, number> = {};
+  const countByTypeStage: Record<string, number> = {};
+  for (const r of records) {
+    completedById[r.lesson_master_id] = r.cnt;
+    const key = `${r.lesson_type}-${r.stage}`;
+    countByTypeStage[key] = (countByTypeStage[key] || 0) + r.cnt;
+  }
+
+  // 必要回数を満たした科目コードのセット（前提チェックで参照）
+  const completedCodes = new Set<string>();
+  for (const lm of lessonMasters) {
+    const cnt = completedById[lm.id] || 0;
+    if (cnt >= lm.required_count) completedCodes.add(lm.code);
+  }
+
+  // 合格済み試験（exams テーブルから lesson_master.code にマッピング）
+  const passedExams = db.prepare(
+    "SELECT exam_type FROM exams WHERE student_id = ? AND result = '合格'"
+  ).all(studentId) as { exam_type: string }[];
+  for (const e of passedExams) {
+    const code = EXAM_TYPE_TO_CODE[e.exam_type];
+    if (code) completedCodes.add(code);
+  }
+
+  // この license_type の全ルールを一括取得
+  const allRules = db.prepare(`
+    SELECT cr.* FROM curriculum_rules cr
+    JOIN lesson_master lm ON cr.lesson_master_id = lm.id
+    WHERE lm.license_type = ? AND cr.is_active = 1
+  `).all(licenseType) as CurriculumRule[];
+
+  const rulesMap: Record<number, CurriculumRule[]> = {};
+  for (const r of allRules) {
+    if (!rulesMap[r.lesson_master_id]) rulesMap[r.lesson_master_id] = [];
+    rulesMap[r.lesson_master_id].push(r);
+  }
+
+  return lessonMasters.map(lm => {
+    const count = completedById[lm.id] || 0;
+
+    if (count >= lm.required_count || completedCodes.has(lm.code)) {
+      return { lesson: lm, status: 'completed', completedCount: count, blockedBy: [] };
+    }
+
+    const rules = rulesMap[lm.id] || [];
+    if (rules.length === 0) {
+      return { lesson: lm, status: 'available', completedCount: count, blockedBy: [] };
+    }
+
+    // 全ルールを AND で評価（rule_group_id は将来の OR 拡張用）
+    const blockedBy: string[] = [];
+    for (const rule of rules) {
+      let ok = false;
+      if (rule.condition_type === 'lesson_completed') {
+        ok = completedCodes.has(rule.condition_value);
+        if (!ok) blockedBy.push(rule.note || `「${rule.condition_value}」の受講が必要`);
+      } else if (rule.condition_type === 'lesson_count_min') {
+        const key = `${rule.condition_value}-${lm.stage}`;
+        const cnt = countByTypeStage[key] || 0;
+        ok = cnt >= (rule.condition_min || 0);
+        if (!ok) blockedBy.push(`${rule.condition_value}教習を${rule.condition_min}時限以上完了が必要（現在${cnt}時限）`);
+      } else if (rule.condition_type === 'exam_passed') {
+        ok = completedCodes.has(rule.condition_value);
+        if (!ok) blockedBy.push(rule.note || `「${rule.condition_value}」の合格が必要`);
+      }
+    }
+
+    return {
+      lesson: lm,
+      status: blockedBy.length === 0 ? 'available' : 'locked',
+      completedCount: count,
+      blockedBy,
+    };
+  });
+}
+
+// ────────────────────────────────────────────────────────────
 // 変更履歴ヘルパー
 // ────────────────────────────────────────────────────────────
 
