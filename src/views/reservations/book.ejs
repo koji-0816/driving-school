@@ -223,10 +223,15 @@
                 <span class="s-rem">残 <%= totalOpen %></span>
               </div>
             <% } else if (jitsugiSlots.length > 0) { %>
-              <div class="slot-cell slot-full">
-                <span class="s-label">技能</span>
-                <span class="s-sub">満席</span>
-              </div>
+              <% const fullSlotId = jitsugiSlots[0].id; %>
+              <form method="post" action="/waitlist/join" style="margin:0">
+                <input type="hidden" name="slot_id" value="<%= fullSlotId %>">
+                <input type="hidden" name="student_id" value="<%= student.id %>">
+                <div class="slot-cell slot-full" style="cursor:pointer" onclick="this.closest('form').submit()" title="キャンセル待ちに登録">
+                  <span class="s-label">技能</span>
+                  <span class="s-sub" style="font-size:9px">待機登録</span>
+                </div>
+              </form>
             <% } %>
 
             <%# 学科セル %>

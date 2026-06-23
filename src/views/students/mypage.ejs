@@ -1,0 +1,137 @@
+<%- include('../partials/layout-start', { title: 'マイページ', current: 'mypage' }) %>
+
+<div style="margin-bottom:8px">
+  <h2 style="font-size:20px;font-weight:700;color:#1e2a3a;margin:0"><%= student.name %> さんのマイページ</h2>
+  <p style="font-size:13px;color:#6b7280;margin:4px 0 0"><%= student.license_type %> 教習中</p>
+</div>
+
+<!-- 期限アラート -->
+<% if(lessonLevel === 'expired' || lessonLevel === 'warn' || provLicLevel === 'expired' || provLicLevel === 'warn') { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:12px 16px;border-radius:8px;margin:16px 0;font-size:13px">
+  ⚠ <strong>期限が近づいています</strong><br>
+  <% if(lessonLevel === 'expired') { %><span>教習期限 (<%= lessonDeadline %>) が切れています。至急窓口にご連絡ください。</span><br><% } %>
+  <% if(lessonLevel === 'warn') { %><span>教習期限 (<%= lessonDeadline %>) まであと少しです。</span><br><% } %>
+  <% if(provLicLevel === 'expired') { %><span>仮免許期限 (<%= provLicDeadline %>) が切れています。</span><br><% } %>
+  <% if(provLicLevel === 'warn') { %><span>仮免許期限 (<%= provLicDeadline %>) が近づいています。</span><br><% } %>
+</div>
+<% } %>
+
+<!-- 進捗 + 予約 -->
+<div class="grid-2 mb-4">
+  <div class="card">
+    <div class="card-header">教習進捗</div>
+    <div class="card-body">
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <span style="font-size:36px;font-weight:700;color:#2563eb"><%= completed %></span>
+        <span style="font-size:16px;color:#6b7280;padding-bottom:6px">/ <%= total %> 項目完了</span>
+      </div>
+      <% if(total > 0) { %>
+      <div style="margin:12px 0 4px;background:#e5e7eb;border-radius:4px;height:10px;overflow:hidden">
+        <div style="width:<%= Math.round(completed/total*100) %>%;background:#2563eb;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+      <div style="font-size:12px;color:#6b7280"><%= Math.round(completed/total*100) %>% 完了</div>
+      <% } %>
+      <% if(available.length > 0) { %>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f2f5">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:6px">次に受講できる科目</div>
+        <% for(const p of available.slice(0,3)) { %>
+        <div style="font-size:13px;color:#1e2a3a;padding:3px 0">
+          <span class="badge badge-blue" style="margin-right:6px;font-size:10px">第<%= p.lesson.stage %>段階</span>
+          <%= p.lesson.name %>
+        </div>
+        <% } %>
+        <% if(available.length > 3) { %>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px">他 <%= available.length - 3 %> 科目</div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">次回予約</div>
+    <div class="card-body">
+      <% if(upcomingReservations.length === 0) { %>
+      <p class="text-muted" style="font-size:13px">予約はありません</p>
+      <a href="/slots" class="btn btn-primary" style="margin-top:8px;font-size:13px">予約する</a>
+      <% } %>
+      <% for(const r of upcomingReservations) { %>
+      <div style="padding:8px 0;border-bottom:1px solid #f0f2f5">
+        <div style="font-size:14px;font-weight:600;color:#1e2a3a"><%= r.slot_date %></div>
+        <div style="font-size:13px;color:#6b7280"><%= r.start_time %> — <%= r.lesson_type %><%= r.instructor_name ? '（' + r.instructor_name + '）' : '' %></div>
+      </div>
+      <% } %>
+      <% if(upcomingReservations.length > 0) { %>
+      <a href="/slots" class="btn btn-secondary" style="margin-top:12px;font-size:12px">予約・変更</a>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- クイックアクション -->
+<div class="grid-2 mb-4">
+  <a href="/quiz/<%= student.id %>" style="text-decoration:none">
+    <div class="card" style="cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
+      <div class="card-body" style="display:flex;align-items:center;gap:16px;padding:20px">
+        <span style="font-size:32px">📝</span>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#1e2a3a">学科試験対策</div>
+          <div style="font-size:12px;color:#6b7280">模擬試験・弱点分析</div>
+        </div>
+      </div>
+    </div>
+  </a>
+  <a href="/feedback/new/<%= student.id %>" style="text-decoration:none">
+    <div class="card" style="cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
+      <div class="card-body" style="display:flex;align-items:center;gap:16px;padding:20px">
+        <span style="font-size:32px">⭐</span>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#1e2a3a">教習フィードバック</div>
+          <div style="font-size:12px;color:#6b7280">今日の教習を評価する</div>
+        </div>
+      </div>
+    </div>
+  </a>
+</div>
+
+<!-- 検定結果 -->
+<div class="card mb-4">
+  <div class="card-header">検定結果</div>
+  <div class="card-body">
+    <% if(exams.length === 0) { %><p class="text-muted">検定受験歴なし</p><% } %>
+    <% for(const e of exams) { %>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5">
+      <span style="font-size:13px"><%= e.exam_type %></span>
+      <span style="font-size:12px;color:#6b7280"><%= e.exam_date %></span>
+      <span class="badge <%= e.result === '合格' ? 'badge-green' : 'badge-red' %>"><%= e.result %></span>
+      <% if(e.score !== null && e.score !== undefined) { %><span style="font-size:12px;color:#555"><%= e.score %>点</span><% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- 期限一覧 -->
+<div class="card mb-4">
+  <div class="card-header">教習期限</div>
+  <div class="card-body">
+    <% const deadlineItems = [
+      { label: '教習期限（入校から9ヶ月）', date: lessonDeadline, level: lessonLevel },
+      { label: '仮免許期限（取得から6ヶ月）', date: provLicDeadline, level: provLicLevel },
+      { label: '卒業検定期限（第二段階修了から3ヶ月）', date: stage2Deadline, level: stage2Level },
+    ].filter(d => d.date); %>
+    <% if(deadlineItems.length === 0) { %><p class="text-muted">期限情報なし（窓口にご確認ください）</p><% } %>
+    <% for(const d of deadlineItems) { %>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5;font-size:13px">
+      <span><%= d.label %></span>
+      <span style="color:<%= d.level === 'expired' ? '#dc2626' : d.level === 'warn' ? '#d97706' : '#16a34a' %>;font-weight:500">
+        <%= d.date %>
+        <span style="font-size:11px;font-weight:400">
+          <% if(d.level === 'expired') { %>（期限切れ）<% } else if(d.level === 'warn') { %>（要注意）<% } else { %>（余裕あり）<% } %>
+        </span>
+      </span>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

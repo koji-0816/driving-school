@@ -130,6 +130,27 @@
       <% } %>
     </div>
   </div>
+
+  <!-- 保護者 -->
+  <div class="role-section">
+    <div class="role-label">保護者（閲覧のみ）</div>
+    <div class="user-grid">
+      <% for(const s of students) { %>
+      <form method="post" action="/select">
+        <input type="hidden" name="role" value="parent">
+        <input type="hidden" name="user_id" value="<%= s.id %>">
+        <input type="hidden" name="user_name" value="<%= s.name %>保護者">
+        <button type="submit" class="user-card" style="width:100%;border:none">
+          <div class="name" style="font-size:13px"><%= s.name %> の保護者</div>
+          <div class="meta" style="margin-top:4px">
+            <span class="tag" style="background:#374151;color:#d1d5db">保護者</span>
+            <span class="tag tag-license"><%= s.license_type %></span>
+          </div>
+        </button>
+      </form>
+      <% } %>
+    </div>
+  </div>
 </div>
 </body>
 </html>

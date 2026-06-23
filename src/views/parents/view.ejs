@@ -1,0 +1,85 @@
+<%- include('../partials/layout-start', { title: '保護者確認画面', current: 'parents' }) %>
+
+<div style="background:#fef9c3;border:1px solid #fde68a;color:#854d0e;padding:10px 16px;border-radius:6px;margin-bottom:20px;font-size:13px">
+  この画面は保護者向けの閲覧専用画面です。操作はできません。
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">教習生情報</div>
+  <div class="card-body">
+    <div style="display:flex;gap:32px;flex-wrap:wrap">
+      <div><span style="font-size:12px;color:#6b7280">氏名</span><br><strong><%= student.name %></strong></div>
+      <div><span style="font-size:12px;color:#6b7280">免許種別</span><br><%= student.license_type %></div>
+      <div><span style="font-size:12px;color:#6b7280">入校日</span><br><%= student.enrollment_date || '—' %></div>
+      <% const mainDeadline = deadlines[0]; %>
+      <% if(mainDeadline) { %>
+      <div><span style="font-size:12px;color:#6b7280">最近の期限</span><br>
+        <span style="color:<%= mainDeadline.diff <= 30 ? '#dc2626' : mainDeadline.diff <= 60 ? '#d97706' : '#1e2a3a' %>">
+          <%= mainDeadline.label %>: <%= mainDeadline.date %><br>
+          <span style="font-size:11px">（残り<%= mainDeadline.diff %>日）</span>
+        </span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2 mb-4">
+  <div class="card">
+    <div class="card-header">進捗サマリー</div>
+    <div class="card-body">
+      <div style="font-size:32px;font-weight:700;color:#2563eb"><%= completed %><span style="font-size:16px;font-weight:400;color:#6b7280"> / <%= total %></span></div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px">教習項目完了</div>
+      <% if(total > 0) { %>
+      <div style="margin-top:12px;background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:<%= Math.round(completed/total*100) %>%;background:#2563eb;height:100%;border-radius:4px"></div>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px"><%= Math.round(completed/total*100) %>%</div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">直近の検定結果</div>
+    <div class="card-body">
+      <% if(exams.length === 0) { %><p class="text-muted">検定受験歴なし</p><% } %>
+      <% for(const e of exams.slice(0,3)) { %>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f2f5;font-size:13px">
+        <span><%= e.exam_type %></span>
+        <span style="color:#6b7280;font-size:12px"><%= e.exam_date %></span>
+        <span class="badge <%= e.result === '合格' ? 'badge-green' : 'badge-red' %>"><%= e.result %></span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">次回予約</div>
+  <div class="card-body">
+    <% if(upcomingReservations.length === 0) { %><p class="text-muted">予約なし</p><% } %>
+    <% for(const r of upcomingReservations) { %>
+    <div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5;font-size:13px">
+      <span style="font-weight:500"><%= r.slot_date %></span>
+      <span style="color:#6b7280"><%= r.start_time %></span>
+      <span><%= r.lesson_type %></span>
+      <% if(r.instructor_name) { %><span class="text-muted"><%= r.instructor_name %></span><% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<% if(deadlines.some(d => d.diff <= 90)) { %>
+<div class="card" style="border-color:#fca5a5">
+  <div class="card-header" style="background:#fee2e2;color:#991b1b">期限アラート</div>
+  <div class="card-body">
+    <% for(const d of deadlines.filter(d => d.diff <= 90)) { %>
+    <p style="font-size:14px;color:#7f1d1d;margin-bottom:8px">
+      <strong><%= d.label %></strong>（<%= d.date %>）まで残り <strong><%= d.diff %>日</strong>
+    </p>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<%- include('../partials/layout-end') %>

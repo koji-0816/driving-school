@@ -38,6 +38,54 @@ function getRooms(db: ReturnType<typeof getDb>) {
   }[];
 }
 
+// マイページ（学生ロール）
+router.get('/mypage', (req: Request, res: Response) => {
+  const studentId = (req.session as any).userId;
+  if (!studentId) { return res.redirect('/select'); }
+  const db = getDb();
+  try {
+    const student = db.prepare(SQL_STUDENT_DETAIL).get(String(studentId)) as Record<string, any> | undefined;
+    if (!student) { res.status(404).render('error', { message: '生徒が見つかりません' }); return; }
+
+    const licenseType = (student['license_type'] as string) || '普通車';
+    const progress = buildCurriculumProgress(db, String(studentId), licenseType);
+    const completed = progress.filter(p => p.status === 'completed').length;
+    const total = progress.length;
+    const available = progress.filter(p => p.status === 'available');
+
+    const upcomingReservations = db.prepare(`
+      SELECT r.*, sl.slot_date, sl.start_time, sl.end_time, sl.lesson_type, i.name as instructor_name
+      FROM reservations r
+      JOIN slots sl ON r.slot_id = sl.id
+      LEFT JOIN instructors i ON sl.instructor_id = i.id
+      WHERE r.student_id = ? AND r.status = '予約済' AND sl.slot_date >= date('now','localtime')
+      ORDER BY sl.slot_date, sl.start_time LIMIT 5
+    `).all(String(studentId));
+
+    const exams = db.prepare(`
+      SELECT e.*, i.name as examiner_name FROM exams e
+      LEFT JOIN instructors i ON e.examiner_id = i.id
+      WHERE e.student_id = ? ORDER BY e.exam_date DESC LIMIT 5
+    `).all(String(studentId));
+
+    // 費用計算
+    const lessonCount = db.prepare(`SELECT COUNT(*) as c FROM student_lesson_records WHERE student_id = ? AND status='完了'`).get(String(studentId)) as { c: number };
+    const feeMaster = db.prepare(`SELECT * FROM fee_master WHERE license_type = ?`).all(licenseType) as { item_name: string; unit_price: number }[];
+    const totalLessonPrice = (feeMaster.find(f => f.item_name === '技能第一段階') || { unit_price: 5500 }).unit_price * (lessonCount.c || 0);
+
+    const deadlines = calcDeadlines(student);
+
+    res.render('students/mypage', {
+      student, progress, completed, total, available,
+      upcomingReservations, exams,
+      totalLessonPrice, feeMaster,
+      ...deadlines,
+    });
+  } finally {
+    db.close();
+  }
+});
+
 // 一覧
 router.get('/', (req: Request, res: Response) => {
   const db = getDb();

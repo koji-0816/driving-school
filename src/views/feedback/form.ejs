@@ -1,0 +1,72 @@
+<%- include('../partials/layout-start', { title: '教習フィードバック', current: 'feedback' }) %>
+
+<a href="/students/<%= student.id %>" class="text-muted" style="font-size:13px">← マイページに戻る</a>
+
+<% if(success) { %>
+<div style="background:#dcfce7;border:1px solid #86efac;color:#15803d;padding:14px 16px;border-radius:8px;margin:16px 0">
+  フィードバックを送信しました。ありがとうございます。
+</div>
+<% } %>
+
+<div class="card mt-4" style="max-width:560px">
+  <div class="card-header">教習のフィードバック</div>
+  <div class="card-body">
+    <p class="text-muted" style="margin-bottom:16px;font-size:13px">今日の教習はいかがでしたか？サービス改善のためにお聞かせください（匿名で集計します）</p>
+    <form method="post" action="/feedback/new/<%= student.id %>">
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:6px">受講日</label>
+        <input type="date" name="lesson_date" value="<%= today %>" required
+          style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:6px">担当教官（任意）</label>
+        <select name="instructor_id" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%">
+          <option value="">— 選択しない —</option>
+          <% for(const i of instructors) { %>
+          <option value="<%= i.id %>"><%= i.name %></option>
+          <% } %>
+        </select>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:8px">満足度</label>
+        <div style="display:flex;gap:8px">
+          <% for(let r=1;r<=5;r++) { %>
+          <label style="cursor:pointer;text-align:center">
+            <input type="radio" name="rating" value="<%= r %>" required style="display:none" class="rating-radio" data-val="<%= r %>">
+            <div class="rating-star" data-val="<%= r %>" style="font-size:28px;color:#d1d5db;transition:color 0.1s">★</div>
+            <div style="font-size:10px;color:#9ca3af"><%= ['','不満','やや不満','普通','やや満足','大満足'][r] %></div>
+          </label>
+          <% } %>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:6px">コメント（任意）</label>
+        <textarea name="comment" rows="4" placeholder="わかりやすかった点、改善してほしい点など"
+          style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;resize:vertical"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">送信する</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.rating-radio').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const val = Number(radio.dataset.val);
+    document.querySelectorAll('.rating-star').forEach(star => {
+      star.style.color = Number(star.dataset.val) <= val ? '#f59e0b' : '#d1d5db';
+    });
+  });
+});
+document.querySelectorAll('.rating-star').forEach(star => {
+  star.addEventListener('click', () => {
+    const val = star.dataset.val;
+    document.querySelector(`.rating-radio[data-val="${val}"]`).checked = true;
+    document.querySelectorAll('.rating-star').forEach(s => {
+      s.style.color = Number(s.dataset.val) <= Number(val) ? '#f59e0b' : '#d1d5db';
+    });
+  });
+});
+</script>
+
+<%- include('../partials/layout-end') %>

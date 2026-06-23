@@ -1,0 +1,58 @@
+<%- include('../partials/layout-start', { title: '試験結果', current: 'quiz' }) %>
+
+<%
+  const pct = Math.round(correct / total * 100);
+  const passed = pct >= 70;
+%>
+
+<div class="card mt-4" style="max-width:680px">
+  <div class="card-body" style="text-align:center;padding:32px">
+    <div style="font-size:48px;font-weight:700;color:<%= passed ? '#16a34a' : '#dc2626' %>"><%= pct %>点</div>
+    <div style="font-size:14px;color:#6b7280;margin-top:4px"><%= correct %>/<%= total %>問正解</div>
+    <div style="margin-top:12px">
+      <span class="badge <%= passed ? 'badge-green' : 'badge-red' %>" style="font-size:14px;padding:6px 16px">
+        <%= passed ? '合格ライン達成！' : 'もう少し練習しましょう' %>
+      </span>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:20px">
+      <a href="/quiz/<%= student.id %>/start" class="btn btn-primary">もう一度</a>
+      <a href="/quiz/<%= student.id %>" class="btn btn-secondary">試験対策トップ</a>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4" style="max-width:680px">
+  <div class="card-header">解説</div>
+  <div class="card-body">
+    <% for(let i=0; i<results.length; i++) {
+      const r = results[i];
+      const choices = [['a', r.choice_a], ['b', r.choice_b], r.choice_c ? ['c', r.choice_c] : null, r.choice_d ? ['d', r.choice_d] : null].filter(Boolean);
+    %>
+    <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #f0f2f5">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:18px"><%= r.isCorrect ? '✓' : '✗' %></span>
+        <span style="font-size:13px;color:#6b7280">問 <%= i+1 %></span>
+        <span class="badge badge-gray"><%= r.category %></span>
+        <span class="badge <%= r.isCorrect ? 'badge-green' : 'badge-red' %>"><%= r.isCorrect ? '正解' : '不正解' %></span>
+      </div>
+      <div style="font-size:14px;font-weight:500;color:#1e2a3a;margin-bottom:10px"><%= r.question %></div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+        <% for(const [key, text] of choices) { %>
+        <div style="padding:8px 12px;border-radius:6px;font-size:13px;background:<%= key === r.answer ? '#dcfce7' : key === r.selected && !r.isCorrect ? '#fee2e2' : '#f9fafb' %>;border:1px solid <%= key === r.answer ? '#86efac' : key === r.selected && !r.isCorrect ? '#fca5a5' : '#f0f2f5' %>">
+          <strong><%= key.toUpperCase() %>.</strong> <%= text %>
+          <%= key === r.answer ? '← 正解' : '' %>
+          <%= key === r.selected && !r.isCorrect ? '← あなたの回答' : '' %>
+        </div>
+        <% } %>
+      </div>
+      <% if(r.explanation) { %>
+      <div style="background:#f0f9ff;border-left:3px solid #38bdf8;padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px;color:#0369a1">
+        <%= r.explanation %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

@@ -72,9 +72,29 @@
           <span class="nav-toggle">▶</span>
         </div>
         <div class="nav-group-body">
+          <a href="/students/mypage"                             class="<%= current==='mypage'       ?'active':'' %>">
+            マイページ
+          </a>
           <a href="/students/<%= currentUserId %>"               class="<%= current==='students'     ?'active':'' %>">教習進捗</a>
           <a href="/reservations/book/<%= currentUserId %>"      class="<%= current==='reservations' ?'active':'' %>">空き枠・予約</a>
           <a href="/reservations/my/<%= currentUserId %>">自分の予約一覧</a>
+          <a href="/quiz/<%= currentUserId %>"                   class="<%= current==='quiz'         ?'active':'' %>">学科試験対策</a>
+          <a href="/feedback/new/<%= currentUserId %>"           class="<%= current==='feedback'     ?'active':'' %>">フィードバック</a>
+          <a href="/notifications/<%= currentUserId %>"          class="<%= current==='notifications'?'active':'' %>">
+            お知らせ<% if(unreadCount > 0) { %> <span class="badge badge-red" style="font-size:11px"><%= unreadCount %></span><% } %>
+          </a>
+          <a href="/graduation"                                  class="<%= current==='graduation'   ?'active':'' %>">卒業後のご案内</a>
+        </div>
+      </div>
+      <% } else if(currentRole === 'parent') { %>
+      <!-- 保護者 -->
+      <div class="nav-group open">
+        <div class="nav-group-header" onclick="toggleNav(this)">
+          <span class="nav-role-icon">保</span>保護者メニュー
+          <span class="nav-toggle">▶</span>
+        </div>
+        <div class="nav-group-body">
+          <a href="/parents/<%= currentUserId %>">教習状況確認</a>
         </div>
       </div>
       <% } %>

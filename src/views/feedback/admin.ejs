@@ -1,0 +1,39 @@
+<%- include('../partials/layout-start', { title: 'フィードバック管理', current: 'feedback' }) %>
+
+<div class="grid-2 mb-4">
+  <div class="card">
+    <div class="card-header">教官別満足度（平均）</div>
+    <div class="card-body">
+      <% if(stats.length === 0) { %><p class="text-muted">データなし</p><% } %>
+      <% for(const s of stats) { %>
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f2f5">
+        <div style="flex:1;font-size:13px"><%= s.name %></div>
+        <div style="color:#f59e0b;font-size:16px"><%= '★'.repeat(Math.round(s.avg_rating)) %><%= '☆'.repeat(5-Math.round(s.avg_rating)) %></div>
+        <div style="font-size:13px;color:#555"><%= Number(s.avg_rating).toFixed(1) %></div>
+        <div class="text-muted">(<%= s.cnt %>件)</div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">フィードバック一覧（直近100件）</div>
+  <div class="card-body">
+    <% if(feedbacks.length === 0) { %><p class="text-muted">フィードバックはありません</p><% } %>
+    <table>
+      <tr><th>受講日</th><th>生徒</th><th>教官</th><th>満足度</th><th>コメント</th></tr>
+      <% for(const f of feedbacks) { %>
+      <tr>
+        <td><%= f.lesson_date %></td>
+        <td><%= f.student_name %></td>
+        <td><%= f.instructor_name || '—' %></td>
+        <td style="color:#f59e0b"><%= '★'.repeat(f.rating) %></td>
+        <td style="font-size:12px;color:#555"><%= f.comment || '—' %></td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

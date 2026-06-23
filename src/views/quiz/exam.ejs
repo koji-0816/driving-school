@@ -1,0 +1,30 @@
+<%- include('../partials/layout-start', { title: '模擬試験（' + category + '）', current: 'quiz' }) %>
+
+<div class="card mt-4" style="max-width:680px">
+  <div class="card-header">模擬試験 — <%= category %>（<%= questions.length %>問）</div>
+  <div class="card-body">
+    <form method="post" action="/quiz/<%= student.id %>/submit">
+      <% for(let i=0; i<questions.length; i++) {
+        const q = questions[i];
+        const choices = [['a', q.choice_a], ['b', q.choice_b], q.choice_c ? ['c', q.choice_c] : null, q.choice_d ? ['d', q.choice_d] : null].filter(Boolean);
+      %>
+      <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f0f2f5">
+        <div style="font-size:13px;color:#6b7280;margin-bottom:6px">問 <%= i+1 %> <span class="badge badge-gray"><%= q.category %></span></div>
+        <div style="font-size:15px;font-weight:500;color:#1e2a3a;margin-bottom:12px;line-height:1.6"><%= q.question %></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <% for(const [key, text] of choices) { %>
+          <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:background 0.1s"
+                 onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <input type="radio" name="q_<%= q.id %>" value="<%= key %>" required style="margin-top:2px">
+            <span style="font-size:14px"><strong style="color:#6b7280"><%= key.toUpperCase() %>.</strong> <%= text %></span>
+          </label>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">採点する</button>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

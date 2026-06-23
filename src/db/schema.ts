@@ -192,6 +192,80 @@ export function initDb(): void {
         FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id)
       );
 
+      -- キャンセル待ち
+      CREATE TABLE IF NOT EXISTS waitlist (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        slot_id    INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        status     TEXT NOT NULL DEFAULT '待機中',  -- '待機中' / '繰り上がり' / 'キャンセル'
+        created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (slot_id)    REFERENCES slots(id),
+        FOREIGN KEY (student_id) REFERENCES students(id)
+      );
+
+      -- 画面内通知
+      CREATE TABLE IF NOT EXISTS notifications (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        type       TEXT NOT NULL,    -- 'deadline_warn' / 'waitlist_promoted' / 'system'
+        title      TEXT NOT NULL,
+        message    TEXT NOT NULL,
+        is_read    INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (student_id) REFERENCES students(id)
+      );
+
+      -- 料金マスター
+      CREATE TABLE IF NOT EXISTS fee_master (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_type TEXT NOT NULL DEFAULT '普通車',
+        item_name    TEXT NOT NULL,
+        lesson_type  TEXT,           -- '技能' / '学科' / '検定' / null=その他
+        stage        INTEGER,        -- 1 / 2 / null=共通
+        unit_price   INTEGER NOT NULL,
+        note         TEXT
+      );
+
+      -- 教習後フィードバック（INSERT中心）
+      CREATE TABLE IF NOT EXISTS lesson_feedback (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id  INTEGER NOT NULL,
+        lesson_date TEXT NOT NULL,
+        instructor_id INTEGER,
+        rating      INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+        comment     TEXT,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (student_id)    REFERENCES students(id),
+        FOREIGN KEY (instructor_id) REFERENCES instructors(id)
+      );
+
+      -- 学科試験問題マスター
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_type TEXT NOT NULL DEFAULT '普通車',
+        category     TEXT NOT NULL,  -- '標識' / '法規' / '安全' / '技術'
+        question     TEXT NOT NULL,
+        choice_a     TEXT NOT NULL,
+        choice_b     TEXT NOT NULL,
+        choice_c     TEXT,
+        choice_d     TEXT,
+        answer       TEXT NOT NULL,  -- 'a' / 'b' / 'c' / 'd'
+        explanation  TEXT,
+        sort_order   INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- 生徒の模擬試験履歴（INSERT中心）
+      CREATE TABLE IF NOT EXISTS student_quiz_records (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id  INTEGER NOT NULL,
+        question_id INTEGER NOT NULL,
+        selected    TEXT NOT NULL,
+        is_correct  INTEGER NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (student_id)  REFERENCES students(id),
+        FOREIGN KEY (question_id) REFERENCES quiz_questions(id)
+      );
+
       -- 生徒の受講履歴（INSERT中心・UPDATE禁止）
       CREATE TABLE IF NOT EXISTS student_lesson_records (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,

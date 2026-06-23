@@ -1,0 +1,89 @@
+<%- include('../partials/layout-start', { title: '卒業おめでとうございます', current: 'graduation' }) %>
+
+<div style="text-align:center;padding:40px 0 20px">
+  <div style="font-size:48px;margin-bottom:12px">🎉</div>
+  <h2 style="font-size:24px;font-weight:700;color:#1e2a3a;margin-bottom:8px">卒業おめでとうございます！</h2>
+  <p style="font-size:14px;color:#6b7280">教習所を卒業された皆さんへ、今後の手続きと安全運転情報をお届けします。</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">卒業後の流れ</div>
+  <div class="card-body">
+    <div style="display:flex;flex-direction:column;gap:0">
+      <% const steps = [
+        { step: 1, title: '住民票のある都道府県の運転免許試験場へ', desc: '卒業証明書（卒業証書）を持参してください。有効期限は1年間です。' },
+        { step: 2, title: '学科試験を受験', desc: '教習所の学科試験とは異なります。都道府県の試験場で受験（普通車AT/MT共通）。合格基準は100点満点中90点以上。' },
+        { step: 3, title: '適性検査（視力など）', desc: '視力・色覚・聴力の検査があります。眼鏡や補聴器が必要な方は忘れずに。' },
+        { step: 4, title: '免許証の交付', desc: '合格当日または後日交付。都道府県により即日交付の場合もあります。' },
+      ]; %>
+      <% for(const s of steps) { %>
+      <div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #f0f2f5">
+        <div style="width:32px;height:32px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0"><%= s.step %></div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#1e2a3a;margin-bottom:4px"><%= s.title %></div>
+          <div style="font-size:13px;color:#6b7280"><%= s.desc %></div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2 mb-4">
+  <div class="card">
+    <div class="card-header">試験場に持参するもの</div>
+    <div class="card-body">
+      <ul style="font-size:13px;line-height:2;padding-left:16px;color:#374151;margin:0">
+        <li>卒業証明書（教習所発行）</li>
+        <li>仮運転免許証</li>
+        <li>住民票（本籍地記載）※マイナンバーなし</li>
+        <li>本人確認書類（パスポートなど）</li>
+        <li>眼鏡・コンタクト（必要な方）</li>
+        <li>手数料（都道府県により異なる）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">学科試験 対策ポイント</div>
+    <div class="card-body">
+      <ul style="font-size:13px;line-height:2;padding-left:16px;color:#374151;margin:0">
+        <li>問題数：95問（文章46問+イラスト問題5問）</li>
+        <li>試験時間：50分</li>
+        <li>合格基準：90点以上（100点満点）</li>
+        <li>引っかけ問題に注意。特に「〜以外」「必ず」などの言葉</li>
+        <li>数字（距離・速度・時間）は確実に覚える</li>
+        <li>過去問を繰り返し解くのが最短ルート</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">安全運転のために — 初心者ドライバーへのアドバイス</div>
+  <div class="card-body">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <% const tips = [
+        { icon: '🚗', title: 'まずは慣れた道から', desc: '免許取り立てのうちは、慣れた道・昼間・晴天から始め、徐々に条件を広げていきましょう。' },
+        { icon: '📱', title: 'スマートフォンは絶対に操作しない', desc: '運転中のスマホ操作は法律違反であり重大事故につながります。ナビはドライブモードを活用。' },
+        { icon: '😴', title: '眠気を感じたら必ず停車', desc: '居眠り運転は一瞬で命を奪います。眠気を感じたらパーキングで仮眠を取る習慣を。' },
+        { icon: '🍺', title: '飲酒運転は絶対NG', desc: '「少し飲んだだけ」も違法です。飲んだらタクシー・代行・公共交通を利用してください。' },
+      ]; %>
+      <% for(const t of tips) { %>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:20px;flex-shrink:0"><%= t.icon %></span>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#1e2a3a;margin-bottom:2px"><%= t.title %></div>
+          <div style="font-size:13px;color:#6b7280"><%= t.desc %></div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:20px 0;color:#6b7280;font-size:13px">
+  ご不明な点は教習所窓口までお気軽にお問い合わせください。<br>安全運転でカーライフをお楽しみください。
+</div>
+
+<%- include('../partials/layout-end') %>

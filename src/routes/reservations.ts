@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/schema';
+import { promoteWaitlist } from './waitlist';
 
 const router = Router();
 
@@ -152,8 +153,11 @@ router.post('/cancel/:reservationId', (req: Request, res: Response) => {
   const db = getDb();
   try {
     // キャンセルはINSERTではなくUPDATEを使用（予約IDとの紐付きを維持するため）
+    const reservation = db.prepare(`SELECT slot_id FROM reservations WHERE id=? AND student_id=?`).get(req.params.reservationId, student_id) as { slot_id: number } | undefined;
     db.prepare(`UPDATE reservations SET status='キャンセル' WHERE id=? AND student_id=?`).run(req.params.reservationId, student_id);
+    const slotId = reservation?.slot_id;
     res.redirect(`/reservations/book/${student_id}?from=${date}`);
+    if (slotId) promoteWaitlist(slotId);
   } finally {
     db.close();
   }
