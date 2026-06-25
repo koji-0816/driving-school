@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import session from 'express-session';
 import { initDb } from './db/schema';
-import { seedDb, seedCurriculum, seedFeeAndQuiz } from './db/seed';
+import { seedDb, seedCurriculum, seedFeeAndQuiz, seedSlots, seedMasters } from './db/seed';
 import dashboardRouter from './routes/dashboard';
 import studentsRouter from './routes/students';
 import instructorsRouter from './routes/instructors';
@@ -19,6 +19,9 @@ import feedbackRouter from './routes/feedback';
 import quizRouter from './routes/quiz';
 import parentsRouter from './routes/parents';
 import graduationRouter from './routes/graduation';
+import appRouter from './routes/app';
+import studentBookingRouter from './routes/studentBooking';
+import bookingRoutesRouter from './routes/bookingRoutes';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
@@ -50,6 +53,8 @@ initDb();
 seedDb();
 seedCurriculum();
 seedFeeAndQuiz();
+seedMasters();
+seedSlots();
 generateDeadlineNotifications();
 
 app.use('/', dashboardRouter);
@@ -68,6 +73,9 @@ app.use('/feedback', feedbackRouter);
 app.use('/quiz', quizRouter);
 app.use('/parents', parentsRouter);
 app.use('/graduation', graduationRouter);
+app.use('/app', appRouter);
+app.use('/student/booking', studentBookingRouter);
+app.use('/booking-routes', bookingRoutesRouter);
 
 app.listen(PORT, () => {
   console.log(`教習所管理システム起動: http://localhost:${PORT}`);

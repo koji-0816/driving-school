@@ -5,6 +5,8 @@ import {
   SQL_STUDENT_INSERT, SQL_STUDENT_UPDATE,
   SQL_ROOMS_FOR_STUDENT_FORM,
   SQL_INSTRUCTOR_SCHEDULE,
+  SQL_LICENSE_TYPES_ALL, SQL_BOOKING_ROUTES_ACTIVE,
+  SQL_HELD_LICENSE_BY_STUDENT, SQL_HELD_LICENSE_INSERT,
   recordStudentChanges, logStudentEvent, buildCurriculumProgress,
 } from '../db/queries';
 
@@ -36,6 +38,14 @@ function getRooms(db: ReturnType<typeof getDb>) {
     id: number; accommodation_id: number; accommodation_name: string;
     room_name: string; capacity: number; available: number;
   }[];
+}
+
+// フォーム用マスター（免許種別・予約経路）
+function getFormMasters(db: ReturnType<typeof getDb>) {
+  return {
+    licenseTypes: db.prepare(SQL_LICENSE_TYPES_ALL).all() as { id: number; license_code: string; license_name: string }[],
+    bookingRoutes: db.prepare(SQL_BOOKING_ROUTES_ACTIVE).all() as { id: number; route_name: string }[],
+  };
 }
 
 // マイページ（学生ロール）
@@ -119,7 +129,7 @@ router.get('/new', (_req: Request, res: Response) => {
   const db = getDb();
   try {
     const rooms = getRooms(db);
-    res.render('students/form', { student: null, rooms, error: null });
+    res.render('students/form', { student: null, rooms, error: null, heldLicenses: [], ...getFormMasters(db) });
   } finally {
     db.close();
   }
@@ -129,13 +139,15 @@ router.get('/new', (_req: Request, res: Response) => {
 router.post('/', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
-          status, room_id, note } = req.body;
+          status, room_id, note,
+          student_no, birth_date, provisional_acquired_date, booking_route_id,
+          held_license_type_id, held_acquired_date, held_expiry_date } = req.body;
 
   if (!name || !kana || !enrollment_date) {
     const db = getDb();
     try {
       const rooms = getRooms(db);
-      return res.render('students/form', { student: null, rooms, error: '氏名・フリガナ・入校日は必須です' });
+      return res.render('students/form', { student: null, rooms, error: '氏名・フリガナ・入校日は必須です', heldLicenses: [], ...getFormMasters(db) });
     } finally {
       db.close();
     }
@@ -153,7 +165,7 @@ router.post('/', (req: Request, res: Response) => {
 
       if (roomInfo && roomInfo.occupied >= roomInfo.capacity) {
         const rooms = getRooms(db);
-        return res.render('students/form', { student: null, rooms, error: 'この部屋は定員に達しています' });
+        return res.render('students/form', { student: null, rooms, error: 'この部屋は定員に達しています', heldLicenses: [], ...getFormMasters(db) });
       }
     } finally {
       db.close();
@@ -165,9 +177,15 @@ router.post('/', (req: Request, res: Response) => {
     const result = db.prepare(SQL_STUDENT_INSERT).run(
       name, kana, phone||null, email||null, license_type, student_type, enrollment_date,
       expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
-      stage2_complete_date||null, status, room_id||null, note||null
+      stage2_complete_date||null, status, room_id||null, note||null,
+      student_no||null, birth_date||null, provisional_acquired_date||null, booking_route_id||null
     );
-    logStudentEvent(Number(result.lastInsertRowid), 'enrollment', `入校: ${name}（${student_type}・${license_type}）`);
+    const newId = Number(result.lastInsertRowid);
+    // 所持免許は自由文字列で持たず t_student_held_license（m_license_type参照）に積む
+    if (held_license_type_id) {
+      db.prepare(SQL_HELD_LICENSE_INSERT).run(newId, held_license_type_id, held_acquired_date||null, held_expiry_date||null);
+    }
+    logStudentEvent(newId, 'enrollment', `入校: ${name}（${student_type}・${license_type}）`);
   } finally {
     db.close();
   }
@@ -256,7 +274,8 @@ router.get('/:id/edit', (req: Request, res: Response) => {
     const student = db.prepare(SQL_STUDENT_DETAIL).get(req.params.id);
     if (!student) { res.status(404).render('error', { message: '生徒が見つかりません' }); return; }
     const rooms = getRooms(db);
-    res.render('students/form', { student, rooms, error: null });
+    const heldLicenses = db.prepare(SQL_HELD_LICENSE_BY_STUDENT).all(req.params.id);
+    res.render('students/form', { student, rooms, error: null, heldLicenses, ...getFormMasters(db) });
   } finally {
     db.close();
   }
@@ -266,14 +285,17 @@ router.get('/:id/edit', (req: Request, res: Response) => {
 router.post('/:id/edit', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
-          status, room_id, note } = req.body;
+          status, room_id, note,
+          student_no, birth_date, provisional_acquired_date, booking_route_id,
+          held_license_type_id, held_acquired_date, held_expiry_date } = req.body;
 
   if (!name || !kana || !enrollment_date) {
     const db = getDb();
     try {
       const rooms = getRooms(db);
       const student = db.prepare(SQL_STUDENT_DETAIL).get(req.params.id);
-      return res.render('students/form', { student, rooms, error: '氏名・フリガナ・入校日は必須です' });
+      const heldLicenses = db.prepare(SQL_HELD_LICENSE_BY_STUDENT).all(req.params.id);
+      return res.render('students/form', { student, rooms, error: '氏名・フリガナ・入校日は必須です', heldLicenses, ...getFormMasters(db) });
     } finally {
       db.close();
     }
@@ -295,7 +317,8 @@ router.post('/:id/edit', (req: Request, res: Response) => {
 
       if (roomInfo && roomInfo.occupied >= roomInfo.capacity) {
         const rooms = getRooms(db);
-        return res.render('students/form', { student: before, rooms, error: 'この部屋は定員に達しています' });
+        const heldLicenses = db.prepare(SQL_HELD_LICENSE_BY_STUDENT).all(req.params.id);
+        return res.render('students/form', { student: before, rooms, error: 'この部屋は定員に達しています', heldLicenses, ...getFormMasters(db) });
       }
     }
 
@@ -308,8 +331,14 @@ router.post('/:id/edit', (req: Request, res: Response) => {
       name, kana, phone||null, email||null, license_type, student_type, enrollment_date,
       expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
       stage2_complete_date||null, status, newRoomId, note||null,
+      student_no||null, birth_date||null, provisional_acquired_date||null, booking_route_id||null,
       req.params.id
     );
+
+    // 所持免許の追加は時系列INSERT（既存行はUPDATEしない）
+    if (held_license_type_id) {
+      db.prepare(SQL_HELD_LICENSE_INSERT).run(req.params.id, held_license_type_id, held_acquired_date||null, held_expiry_date||null);
+    }
 
     recordStudentChanges(String(req.params.id), before as Record<string, unknown>, after);
   } finally {

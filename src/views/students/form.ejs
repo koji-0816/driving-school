@@ -66,6 +66,74 @@
         </div>
       </div>
 
+      <!-- 教習生情報 -->
+      <div style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">教習生情報</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">教習生番号</label>
+            <input type="text" name="student_no" value="<%= student ? student.student_no || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <div class="text-muted" style="margin-top:3px">期首にリセットされるため重複可（内部IDとは別）</div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">生年月日</label>
+            <input type="date" name="birth_date" value="<%= student ? student.birth_date || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">仮免取得日</label>
+            <input type="date" name="provisional_acquired_date" value="<%= student ? student.provisional_acquired_date || '' : '' %>"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">予約経路</label>
+            <select name="booking_route_id" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+              <option value="">未設定</option>
+              <% for(const r of bookingRoutes) { %>
+                <option value="<%= r.id %>" <%= student && String(student.booking_route_id) === String(r.id) ? 'selected' : '' %>><%= r.route_name %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 所持免許（m_license_type参照・時系列INSERT） -->
+      <div style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">所持免許</div>
+        <% if (heldLicenses && heldLicenses.length > 0) { %>
+          <div style="margin-bottom:12px">
+            <% for(const h of heldLicenses) { %>
+              <span class="badge badge-blue" style="margin-right:6px">
+                <%= h.license_name %><% if(h.acquired_date) { %>（取得 <%= h.acquired_date %>）<% } %>
+              </span>
+            <% } %>
+          </div>
+        <% } %>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">所持免許（追加）</label>
+            <select name="held_license_type_id" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+              <option value="">追加しない</option>
+              <% for(const l of licenseTypes) { %>
+                <option value="<%= l.id %>"><%= l.license_name %></option>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">取得年月日</label>
+            <input type="date" name="held_acquired_date"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">有効期限</label>
+            <input type="date" name="held_expiry_date"
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+        </div>
+        <div class="text-muted" style="margin-top:6px">所持免許は記録のたびに履歴として追加されます（既存は書き換えません）</div>
+      </div>
+
       <!-- 合宿のみ -->
       <div id="section-gasshuku" style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
         <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">合宿生の情報</div>

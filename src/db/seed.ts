@@ -228,6 +228,134 @@ export function seedCurriculum(): void {
   }
 }
 
+export function seedMasters(): void {
+  const db = getDb();
+  try {
+    // 免許種別マスター（判定は license_code で行う）
+    const licCount = (db.prepare('SELECT COUNT(*) as c FROM m_license_type').get() as { c: number }).c;
+    if (licCount === 0) {
+      const insLic = db.prepare(
+        `INSERT INTO m_license_type (license_code, license_name, category, sort_order) VALUES (?,?,?,?)`
+      );
+      insLic.run('NONE',        '所持免許なし',   'なし', 10);
+      insLic.run('FUTSU_AT',    '普通自動車AT',   '四輪', 20);
+      insLic.run('FUTSU_MT',    '普通自動車MT',   '四輪', 30);
+      insLic.run('NIRIN_FUTSU', '普通二輪',       '二輪', 40);
+      insLic.run('NIRIN_OGATA', '大型二輪',       '二輪', 50);
+      insLic.run('GENTSUKI',    '原付',           '原付', 60);
+      console.log('免許種別マスター投入完了');
+    }
+
+    // 予約経路マスター
+    const routeCount = (db.prepare('SELECT COUNT(*) as c FROM m_booking_route').get() as { c: number }).c;
+    if (routeCount === 0) {
+      const insRoute = db.prepare(
+        `INSERT INTO m_booking_route (route_name, is_active, sort_order) VALUES (?,?,?)`
+      );
+      insRoute.run('自校集客',           1, 10);
+      insRoute.run('サクラス',           1, 20);
+      insRoute.run('その他エージェント', 1, 30);
+      console.log('予約経路マスター投入完了');
+    }
+  } finally {
+    db.close();
+  }
+}
+
+export function seedSlots(): void {
+  const db = getDb();
+  try {
+    // 冪等性ガード：カリキュラム紐づきスロットが既にあれば再生成しない
+    // （ランダム配置のため、ガードが無いと再起動ごとに積み増してしまう）
+    const already = (db.prepare(
+      `SELECT COUNT(*) as c FROM slots WHERE lesson_master_id IS NOT NULL`
+    ).get() as { c: number }).c;
+    if (already > 0) return;
+
+    const lessons = db.prepare(`
+      SELECT id, lesson_type, sort_order
+      FROM lesson_master
+      WHERE license_type = '普通車' AND lesson_type != '検定'
+      ORDER BY sort_order
+    `).all() as { id: number; lesson_type: string; sort_order: number }[];
+
+    if (lessons.length === 0) return;
+
+    const minSortOrder = lessons[0].sort_order;
+
+    const instructors = db.prepare(
+      "SELECT id FROM instructors WHERE status = '在籍' ORDER BY id LIMIT 3"
+    ).all() as { id: number }[];
+    if (instructors.length === 0) return;
+
+    const instrTech = instructors[0].id;
+    const instrGaku = instructors.length > 1 ? instructors[1].id : instrTech;
+
+    const hours = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+    const endTime = (h: string) => {
+      const hh = parseInt(h.split(':')[0]);
+      return `${String(hh + 1).padStart(2,'0')}:00`;
+    };
+
+    const shuffle = <T>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const getWeekDates = (offsetDays: number): string[] => {
+      const dates: string[] = [];
+      for (let i = offsetDays; i < offsetDays + 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        if (d.getDay() !== 0) dates.push(d.toISOString().split('T')[0]);
+      }
+      return dates;
+    };
+
+    const weeks = [getWeekDates(0), getWeekDates(7)];
+
+    const insSlot = db.prepare(`
+      INSERT OR IGNORE INTO slots
+        (slot_date, start_time, end_time, instructor_id, lesson_type, license_type, max_students, status, lesson_master_id)
+      VALUES (?, ?, ?, ?, ?, '普通車', 1, '受付中', ?)
+    `);
+
+    const exists = db.prepare(
+      `SELECT 1 FROM slots WHERE lesson_master_id = ? AND slot_date = ? AND start_time = ?`
+    );
+
+    let inserted = 0;
+    for (const weekDates of weeks) {
+      for (const lesson of lessons) {
+        const count = lesson.sort_order === minSortOrder ? 3 : 2;
+        const candidates: [string, string][] = [];
+        for (const date of weekDates) {
+          for (const h of hours) candidates.push([date, h]);
+        }
+        let placed = 0;
+        for (const [date, h] of shuffle(candidates)) {
+          if (placed >= count) break;
+          if (exists.get(lesson.id, date, h)) continue;
+          const iid = lesson.lesson_type === '技能' ? instrTech : instrGaku;
+          insSlot.run(date, h, endTime(h), iid, lesson.lesson_type, lesson.id);
+          placed++;
+          inserted++;
+        }
+      }
+    }
+    if (inserted > 0) console.log(`スロット自動生成完了（${inserted}件）`);
+  } finally {
+    db.close();
+  }
+}
+
 export function seedFeeAndQuiz(): void {
   const db = getDb();
   try {

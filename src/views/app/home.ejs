@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= student.name %> さん｜教習アプリ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #d7dce3;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+    /* スマホ枠（PCでもスマホに見える台紙） */
+    .phone {
+      width: 390px;
+      max-width: 100%;
+      background: #f4f6f9;
+      border-radius: 36px;
+      box-shadow: 0 18px 50px rgba(20,30,50,0.35);
+      overflow: hidden;
+      position: relative;
+      min-height: 800px;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (max-width: 430px) {
+      body { padding: 0; background: #f4f6f9; }
+      .phone { width: 100%; border-radius: 0; box-shadow: none; min-height: 100vh; }
+    }
+    /* ヘッダー */
+    .app-header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #fff;
+      padding: 22px 20px 26px;
+      position: relative;
+    }
+    .app-header .greet { font-size: 13px; opacity: 0.85; }
+    .app-header .name { font-size: 20px; font-weight: 700; margin-top: 2px; }
+    .bell {
+      position: absolute; top: 22px; right: 20px;
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; text-decoration: none;
+    }
+    .bell .dot {
+      position: absolute; top: 4px; right: 4px;
+      min-width: 17px; height: 17px; padding: 0 4px;
+      background: #ef4444; color: #fff;
+      border-radius: 9px; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border: 1.5px solid #1d4ed8;
+    }
+    /* 進捗バー */
+    .progress-box { margin-top: 18px; }
+    .progress-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 12px; margin-bottom: 6px;
+    }
+    .progress-meta .pct { font-size: 22px; font-weight: 700; }
+    .bar { height: 8px; background: rgba(255,255,255,0.25); border-radius: 4px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: #fff; border-radius: 4px; }
+    /* 本体スクロール領域 */
+    .body { flex: 1; padding: 16px 16px 90px; overflow-y: auto; }
+    .section-label {
+      font-size: 12px; font-weight: 700; color: #6b7280;
+      margin: 18px 4px 8px; letter-spacing: 0.03em;
+    }
+    .section-label:first-child { margin-top: 4px; }
+    .card {
+      background: #fff; border-radius: 16px; padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    /* 期限アラート */
+    .alert {
+      border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    }
+    .alert.warn { background: #fef2f2; border: 1px solid #fecaca; }
+    .alert.ok   { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .alert .ico { font-size: 22px; }
+    .alert .txt { flex: 1; }
+    .alert .ttl { font-size: 13px; font-weight: 700; color: #1e2a3a; }
+    .alert .sub { font-size: 12px; margin-top: 2px; }
+    .alert.warn .sub { color: #dc2626; }
+    .alert.ok   .sub { color: #16a34a; }
+    /* 次の予約 */
+    .resv { display: flex; align-items: center; gap: 14px; padding: 4px 2px; }
+    .resv + .resv { margin-top: 12px; border-top: 1px solid #f0f2f5; padding-top: 14px; }
+    .resv .date-badge {
+      width: 52px; text-align: center; flex-shrink: 0;
+      background: #eef4ff; border-radius: 10px; padding: 6px 0;
+    }
+    .resv .date-badge .d { font-size: 19px; font-weight: 700; color: #2563eb; line-height: 1; }
+    .resv .date-badge .m { font-size: 10px; color: #6b7280; margin-top: 2px; }
+    .resv .info .l { font-size: 14px; font-weight: 600; color: #1e2a3a; }
+    .resv .info .meta { font-size: 12px; color: #6b7280; margin-top: 3px; }
+    /* 受講可能（主役） */
+    .lesson-card {
+      background: #fff; border-radius: 16px; padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .lesson-card + .lesson-card { margin-top: 10px; }
+    .stage-badge {
+      flex-shrink: 0; font-size: 10px; font-weight: 700;
+      padding: 4px 8px; border-radius: 6px;
+    }
+    .stage-1 { background: #e0f2fe; color: #0369a1; }
+    .stage-2 { background: #fef3c7; color: #b45309; }
+    .lesson-card .nm { flex: 1; font-size: 14px; font-weight: 600; color: #1e2a3a; }
+    .lesson-card .type { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .btn-resv {
+      flex-shrink: 0; background: #2563eb; color: #fff; border: none;
+      font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 10px;
+      text-decoration: none; display: inline-block;
+    }
+    .empty {
+      text-align: center; color: #9ca3af; font-size: 13px; padding: 24px 0;
+    }
+    /* キャンセル待ち */
+    .wait-pill {
+      display: flex; align-items: center; gap: 10px;
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+      padding: 12px 14px; font-size: 13px; color: #92400e;
+    }
+    .wait-pill .cnt { font-weight: 700; font-size: 15px; }
+    /* 下部タブ */
+    .tabbar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: #fff; border-top: 1px solid #e5e7eb;
+      display: flex; padding: 8px 0 14px;
+    }
+    .tabbar a {
+      flex: 1; text-align: center; text-decoration: none;
+      color: #9ca3af; font-size: 10px;
+    }
+    .tabbar a.active { color: #2563eb; }
+    .tabbar .ti { font-size: 20px; display: block; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+
+    <!-- ヘッダー -->
+    <div class="app-header">
+      <a href="/notifications/<%= student.id %>" class="bell">
+        🔔<% if (unread > 0) { %><span class="dot"><%= unread %></span><% } %>
+      </a>
+      <div class="greet">こんにちは</div>
+      <div class="name"><%= student.name %> さん</div>
+
+      <div class="progress-box">
+        <div class="progress-meta">
+          <span>卒業までの進捗</span>
+          <span class="pct"><%= total > 0 ? Math.round(completed / total * 100) : 0 %>%</span>
+        </div>
+        <div class="bar"><span style="width: <%= total > 0 ? Math.round(completed / total * 100) : 0 %>%"></span></div>
+        <div style="font-size:11px; opacity:0.85; margin-top:6px;">
+          <%= completed %> / <%= total %> 項目 完了
+        </div>
+      </div>
+    </div>
+
+    <!-- 本体 -->
+    <div class="body">
+
+      <!-- 期限アラート -->
+      <% if (nearestDeadline) { %>
+        <% const warn = nearestDeadline.days <= 90; %>
+        <div class="alert <%= warn ? 'warn' : 'ok' %>">
+          <span class="ico"><%= warn ? '⚠️' : '🗓️' %></span>
+          <div class="txt">
+            <div class="ttl"><%= nearestDeadline.label %></div>
+            <div class="sub">
+              <% if (nearestDeadline.days < 0) { %>
+                期限超過（<%= nearestDeadline.date %>）— 窓口にご連絡ください
+              <% } else { %>
+                <%= nearestDeadline.date %> まで あと <%= nearestDeadline.days %> 日
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- 次の予約 -->
+      <div class="section-label">次の予約</div>
+      <div class="card">
+        <% if (upcoming.length === 0) { %>
+          <div class="empty">予約はありません<br>下の「次に受けられる教習」から予約しましょう</div>
+        <% } else { %>
+          <% upcoming.forEach(function(r) {
+               var mm = r.slot_date.slice(5,7), dd = r.slot_date.slice(8,10); %>
+            <div class="resv">
+              <div class="date-badge">
+                <div class="d"><%= dd %></div>
+                <div class="m"><%= mm %>月</div>
+              </div>
+              <div class="info">
+                <div class="l"><%= r.lesson_name || r.lesson_type %></div>
+                <div class="meta">
+                  <%= r.start_time %>〜<%= r.end_time %>
+                  <% if (r.instructor_name) { %>／<%= r.instructor_name %> 指導員<% } %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+
+      <!-- 主役：次に受けられる教習 -->
+      <div class="section-label">次に受けられる教習</div>
+      <% if (available.length === 0) { %>
+        <div class="card"><div class="empty">現在受講できる教習はありません</div></div>
+      <% } else { %>
+        <% available.forEach(function(p) { %>
+          <div class="lesson-card">
+            <span class="stage-badge stage-<%= p.lesson.stage %>">第<%= p.lesson.stage %>段階</span>
+            <div class="nm">
+              <%= p.lesson.name %>
+              <div class="type"><%= p.lesson.lesson_type %></div>
+            </div>
+            <a class="btn-resv" href="/reservations/book/<%= student.id %>">予約</a>
+          </div>
+        <% }); %>
+      <% } %>
+
+      <!-- キャンセル待ち -->
+      <% if (waiting.length > 0) { %>
+        <div class="section-label">キャンセル待ち</div>
+        <div class="wait-pill">
+          <span>⏳</span>
+          <div>
+            <span class="cnt"><%= waiting.length %> 件</span> 待機中
+            <div style="font-size:11px; margin-top:2px;">
+              空きが出たら通知でお知らせします
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+    </div>
+
+    <!-- 下部タブバー -->
+    <div class="tabbar">
+      <a href="/app/<%= student.id %>" class="active"><span class="ti">🏠</span>ホーム</a>
+      <a href="/reservations/book/<%= student.id %>"><span class="ti">📅</span>予約</a>
+      <a href="/notifications/<%= student.id %>"><span class="ti">🔔</span>お知らせ</a>
+      <a href="/quiz/<%= student.id %>"><span class="ti">📝</span>試験対策</a>
+    </div>
+
+  </div>
+</body>
+</html>

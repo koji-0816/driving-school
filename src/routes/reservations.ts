@@ -94,10 +94,12 @@ router.get('/book/:studentId', (req: Request, res: Response) => {
 
     const slots = db.prepare(`
       SELECT sl.*, i.name as instructor_name, f.name as facility_name, f.category as facility_category,
+             lm.code as lesson_code, lm.name as lesson_name, lm.stage as lesson_stage,
              COUNT(r.id) as reserved_count
       FROM slots sl
       JOIN instructors i ON sl.instructor_id = i.id
       LEFT JOIN facilities f ON sl.facility_id = f.id
+      LEFT JOIN lesson_master lm ON sl.lesson_master_id = lm.id
       LEFT JOIN reservations r ON r.slot_id = sl.id AND r.status = '予約済'
       WHERE sl.slot_date >= ? AND sl.slot_date < date(?, '+7 days')
         AND sl.license_type = ? AND sl.status = '受付中'

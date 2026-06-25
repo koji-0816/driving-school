@@ -1,0 +1,146 @@
+<%- include('../partials/layout-start', { title: '技能予約', current: 'reservations' }) %>
+
+<style>
+.bk-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.bk-table th, .bk-table td { border: 1px solid #e0e4ea; text-align: center; vertical-align: middle; padding: 0; }
+.bk-table thead th { background: #f0f4f8; font-size: 12px; padding: 8px 4px; color: #555; font-weight: 700; white-space: nowrap; }
+.bk-table .date-col {
+  background: #f8fafc; font-size: 12px; padding: 10px 8px; color: #333; font-weight: 700;
+  width: 78px; min-width: 78px; white-space: nowrap; text-align: left; line-height: 1.5;
+}
+.bk-table .date-col .dow { font-size: 11px; color: #888; font-weight: 400; }
+.bk-table .date-col.sat .dow { color: #2563eb; }
+.bk-table .date-col.sun .dow { color: #dc2626; }
+.bk-table .date-col.today-row { background: #fffbeb; border-left: 3px solid #f59e0b; }
+
+.cell-wrap { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; min-height: 40px; align-items: stretch; justify-content: center; }
+.chip {
+  flex: 1 1 auto; min-width: 30px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; height: 36px; border-radius: 6px;
+  font-size: 13px; font-weight: 700; transition: filter 0.1s;
+}
+/* 技能予約済（自分）＝黄・取消 */
+.chip-self { background: #fde68a; color: #92400e; cursor: pointer; border: 1px solid #fcd34d; }
+.chip-self:hover { filter: brightness(0.95); }
+/* 予約できる空き＝＋ */
+.chip-open { background: #d1fae5; color: #065f46; cursor: pointer; border: 1px solid #6ee7b7; font-size: 18px; }
+.chip-open:hover { filter: brightness(0.93); }
+/* 未受講の学科＝白＋番号（タップ不可） */
+.chip-gakka { background: #ffffff; color: #5b21b6; cursor: default; border: 1px dashed #c4b5fd; }
+.chip-gakka .room { font-size: 9px; color: #9ca3af; font-weight: 400; margin-top: 1px; }
+.chip-empty { background: transparent; cursor: default; }
+
+.legend { display: flex; gap: 14px; margin-bottom: 14px; font-size: 12px; align-items: center; flex-wrap: wrap; }
+.legend-box { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+</style>
+
+<% if (typeof error !== 'undefined' && error) { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin:12px 0">⚠️ <%= error %></div>
+<% } %>
+
+<!-- ヘッダー -->
+<div class="card mb-4 mt-4">
+  <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <strong><%= student.name %></strong>
+      <span class="badge badge-blue" style="margin-left:8px"><%= student.license_type %></span>
+    </div>
+    <%
+      const fromD = new Date(fromDate);
+      const prevD = new Date(fromD); prevD.setDate(prevD.getDate() - 14);
+      const nextD = new Date(fromD); nextD.setDate(nextD.getDate() + 14);
+      const prevStr = prevD.toISOString().split('T')[0];
+      const nextStr = nextD.toISOString().split('T')[0];
+    %>
+    <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+      <a href="/student/booking?from=<%= prevStr %>" class="btn btn-secondary">◀ 前の2週</a>
+      <span style="font-size:13px;color:#555"><%= fromDate %> 〜</span>
+      <a href="/student/booking?from=<%= nextStr %>" class="btn btn-secondary">次の2週 ▶</a>
+    </div>
+  </div>
+</div>
+
+<!-- 凡例 -->
+<div class="legend">
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#d1fae5;border:1px solid #6ee7b7"></div>予約できる（＋）</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#fde68a;border:1px solid #fcd34d"></div>技能予約済（タップで取消）</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#fff;border:1px dashed #c4b5fd"></div>学科（情報のみ）</div>
+  <div style="display:flex;align-items:center;gap:5px"><div class="legend-box" style="background:#f3f4f6;border:1px solid #e5e7eb"></div>空白＝対象なし</div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="overflow-x:auto;padding:8px">
+    <table class="bk-table">
+      <thead>
+        <tr>
+          <th style="width:78px">日付</th>
+          <% for (const t of timeList) { %><th><%= t %></th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <%
+          const DAYS_JP = ['日','月','火','水','木','金','土'];
+        %>
+        <% for (const date of dateList) { %>
+        <%
+          const d = new Date(date);
+          const dow = DAYS_JP[d.getDay()];
+          const isToday = date === today;
+          const isSat = d.getDay() === 6, isSun = d.getDay() === 0;
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2,'0');
+          const dayCells = grid[date] || {};
+        %>
+        <tr>
+          <td class="date-col <%= isToday ? 'today-row' : '' %> <%= isSat ? 'sat' : isSun ? 'sun' : '' %>">
+            <% if (isToday) { %><span style="font-size:9px;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:3px;display:inline-block;margin-bottom:2px">今日</span><br><% } %>
+            <%= mm %>/<%= dd %><br><span class="dow">（<%= dow %>）</span>
+          </td>
+          <% for (const time of timeList) { %>
+          <% const cell = dayCells[time]; %>
+          <td>
+            <div class="cell-wrap">
+              <% if (!cell) { %>
+                <div class="chip chip-empty"></div>
+              <% } else { %>
+                <%# 技能予約済（自分）＝黄・取消 %>
+                <% if (cell.self) { %>
+                  <form method="post" action="/student/booking/cancel" style="margin:0;flex:1 1 auto;display:flex" onsubmit="return confirm('この技能予約を取り消しますか？')">
+                    <input type="hidden" name="reservation_id" value="<%= cell.self.reservation_id %>">
+                    <input type="hidden" name="from" value="<%= fromDate %>">
+                    <button type="submit" class="chip chip-self" style="width:100%;border:none;font-family:inherit" title="<%= cell.self.label %>｜タップで取消">✓ 予約</button>
+                  </form>
+                <%# 予約できる空き＝＋ %>
+                <% } else if (cell.open) { %>
+                  <form method="post" action="/student/booking/reserve" style="margin:0;flex:1 1 auto;display:flex">
+                    <input type="hidden" name="slot_id" value="<%= cell.open.slot_id %>">
+                    <input type="hidden" name="from" value="<%= fromDate %>">
+                    <button type="submit" class="chip chip-open" style="width:100%;border:none;font-family:inherit" title="<%= cell.open.label %>｜タップで予約">＋</button>
+                  </form>
+                <% } %>
+                <%# 未受講の学科＝白＋番号（タップ不可・複数可） %>
+                <% for (const g of cell.gakka) { %>
+                  <div class="chip chip-gakka" title="学科<%= g.code %><%= g.room ? '｜' + g.room : '' %>（情報のみ）">
+                    <span><%= g.code %></span>
+                    <% if (g.room) { %><span class="room"><%= g.room %></span><% } %>
+                  </div>
+                <% } %>
+                <% if (!cell.self && !cell.open && cell.gakka.length === 0) { %>
+                  <div class="chip chip-empty"></div>
+                <% } %>
+              <% } %>
+            </div>
+          </td>
+          <% } %>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="text-muted" style="font-size:12px;margin-top:12px">
+  ※ 表示されているのは「あなたが今予約できる技能」と「未受講の学科開講」のみです。指導員・車両は学校側で割り当てます。
+</p>
+
+<%- include('../partials/layout-end') %>

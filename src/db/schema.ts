@@ -7,6 +7,23 @@ export function getDb(): Database.Database {
   return new Database(DB_PATH);
 }
 
+// 既存テーブルに不足列だけを追加する冪等マイグレーション
+// （SQLiteは PRAGMA table_info で列存在を確認し、無ければ ALTER TABLE ADD COLUMN）
+function migrateAddColumns(
+  db: Database.Database,
+  table: string,
+  columns: { name: string; type: string }[]
+): void {
+  const existing = new Set(
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(c => c.name)
+  );
+  for (const col of columns) {
+    if (!existing.has(col.name)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col.name} ${col.type}`);
+    }
+  }
+}
+
 export function initDb(): void {
   const db = new Database(DB_PATH);
   try {
@@ -127,9 +144,12 @@ export function initDb(): void {
         license_type TEXT NOT NULL DEFAULT '普通車',
         max_students INTEGER NOT NULL DEFAULT 1,
         status TEXT NOT NULL DEFAULT '受付中',
+        lesson_master_id INTEGER,
         created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (instructor_id) REFERENCES instructors(id),
-        FOREIGN KEY (facility_id) REFERENCES facilities(id)
+        FOREIGN KEY (facility_id) REFERENCES facilities(id),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id),
+        UNIQUE(lesson_master_id, slot_date, start_time)
       );
 
       CREATE TABLE IF NOT EXISTS reservations (
@@ -141,6 +161,17 @@ export function initDb(): void {
         created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (slot_id) REFERENCES slots(id),
         FOREIGN KEY (student_id) REFERENCES students(id)
+      );
+
+      -- 予約の取消イベント（INSERT専用・DELETE/UPDATEしない＝赤伝）
+      -- 有効予約は reservations を本テーブルでLEFT JOINし、取消イベントが無いもので導出する
+      CREATE TABLE IF NOT EXISTS reservation_cancellations (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        reservation_id INTEGER NOT NULL UNIQUE,
+        student_id     INTEGER NOT NULL,
+        created_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+        FOREIGN KEY (student_id)     REFERENCES students(id)
       );
 
       CREATE TABLE IF NOT EXISTS exams (
@@ -280,7 +311,44 @@ export function initDb(): void {
         FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id),
         FOREIGN KEY (instructor_id)    REFERENCES instructors(id)
       );
+
+      -- 免許種別マスター（取得・所持の共通語彙。判定は license_code で行う）
+      CREATE TABLE IF NOT EXISTS m_license_type (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_code TEXT NOT NULL UNIQUE,
+        license_name TEXT NOT NULL,
+        category     TEXT NOT NULL,
+        sort_order   INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- 生徒の所持免許（INSERT中心・時系列。自由文字列で持たず m_license_type 参照）
+      CREATE TABLE IF NOT EXISTS t_student_held_license (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id      INTEGER NOT NULL,
+        license_type_id INTEGER NOT NULL,
+        acquired_date   TEXT,
+        expiry_date     TEXT,
+        recorded_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (student_id)      REFERENCES students(id),
+        FOREIGN KEY (license_type_id) REFERENCES m_license_type(id)
+      );
+
+      -- 予約経路マスター（自校集客・サクラス・その他エージェント等）
+      CREATE TABLE IF NOT EXISTS m_booking_route (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        route_name  TEXT NOT NULL,
+        is_active   INTEGER NOT NULL DEFAULT 1,
+        sort_order  INTEGER NOT NULL DEFAULT 0
+      );
     `);
+
+    // students への列追加（冪等マイグレーション：無い列だけ ADD COLUMN）
+    migrateAddColumns(db, 'students', [
+      { name: 'student_no',                type: 'TEXT' },  // 教習生番号（PK/UNIQUEにしない・期首リセットで重複可）
+      { name: 'birth_date',                type: 'TEXT' },  // 生年月日
+      { name: 'provisional_acquired_date', type: 'TEXT' },  // 仮免取得日
+      { name: 'booking_route_id',          type: 'INTEGER' }, // 予約経路 → m_booking_route
+    ]);
   } finally {
     db.close();
   }

@@ -18,8 +18,9 @@ export const SQL_STUDENT_STATUS_COUNTS = `SELECT status, COUNT(*) as c FROM stud
 export const SQL_STUDENT_INSERT = `
   INSERT INTO students
     (name,kana,phone,email,license_type,student_type,enrollment_date,expected_graduation,
-     lesson_start_date,provisional_license_date,stage2_complete_date,status,room_id,note,updated_at)
-  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))
+     lesson_start_date,provisional_license_date,stage2_complete_date,status,room_id,note,
+     student_no,birth_date,provisional_acquired_date,booking_route_id,updated_at)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))
 `;
 
 export const SQL_STUDENT_UPDATE = `
@@ -27,6 +28,39 @@ export const SQL_STUDENT_UPDATE = `
     name=?,kana=?,phone=?,email=?,license_type=?,student_type=?,enrollment_date=?,
     expected_graduation=?,lesson_start_date=?,provisional_license_date=?,stage2_complete_date=?,
     status=?,room_id=?,note=?,
+    student_no=?,birth_date=?,provisional_acquired_date=?,booking_route_id=?,
+    updated_at=datetime('now','localtime')
+  WHERE id=?
+`;
+
+// ── 免許種別・所持免許・予約経路・教官 ───────────────────────────
+export const SQL_LICENSE_TYPES_ALL = `SELECT * FROM m_license_type ORDER BY sort_order`;
+
+export const SQL_HELD_LICENSE_BY_STUDENT = `
+  SELECT h.*, m.license_code, m.license_name, m.category
+  FROM t_student_held_license h
+  JOIN m_license_type m ON h.license_type_id = m.id
+  WHERE h.student_id = ?
+  ORDER BY h.recorded_at DESC
+`;
+export const SQL_HELD_LICENSE_INSERT = `
+  INSERT INTO t_student_held_license (student_id, license_type_id, acquired_date, expiry_date)
+  VALUES (?,?,?,?)
+`;
+
+export const SQL_BOOKING_ROUTES_ALL    = `SELECT * FROM m_booking_route ORDER BY sort_order`;
+export const SQL_BOOKING_ROUTES_ACTIVE = `SELECT * FROM m_booking_route WHERE is_active = 1 ORDER BY sort_order`;
+export const SQL_BOOKING_ROUTE_INSERT  = `INSERT INTO m_booking_route (route_name, sort_order) VALUES (?,?)`;
+export const SQL_BOOKING_ROUTE_UPDATE  = `UPDATE m_booking_route SET route_name=?, is_active=? WHERE id=?`;
+
+export const SQL_INSTRUCTORS_ALL = `SELECT * FROM instructors ORDER BY status, name`;
+export const SQL_INSTRUCTOR_INSERT = `
+  INSERT INTO instructors (name,kana,qualifications,is_examiner,examiner_qualifications,status,updated_at)
+  VALUES (?,?,?,?,?,?,datetime('now','localtime'))
+`;
+export const SQL_INSTRUCTOR_UPDATE = `
+  UPDATE instructors SET
+    name=?,kana=?,qualifications=?,is_examiner=?,examiner_qualifications=?,status=?,
     updated_at=datetime('now','localtime')
   WHERE id=?
 `;
@@ -280,6 +314,96 @@ export function buildCurriculumProgress(
       blockedBy,
     };
   });
+}
+
+// ────────────────────────────────────────────────────────────
+// 教習生 技能予約グリッド（/student/booking）
+//   ・有効予約 = 予約INSERT − 取消イベント（reservation_cancellations）
+//   ・読み取りは旧方式 status='キャンセル' も無効扱い（取りこぼし防止）
+//   ・書き込み（取消）は reservation_cancellations への INSERT のみ（UPDATE回避）
+// ────────────────────────────────────────────────────────────
+
+/** 有効予約の条件（取消イベント無し かつ 旧status取消でない）*/
+const ACTIVE_RESERVATION_JOIN = `
+  LEFT JOIN reservation_cancellations c ON c.reservation_id = r.id
+`;
+const ACTIVE_RESERVATION_WHERE = `c.id IS NULL AND r.status <> 'キャンセル'`;
+
+/** グリッド対象スロット（2週間・該当免許・受付中）＋有効予約数＋学科項目＋教室名 */
+export const SQL_BOOKING_SLOTS = `
+  SELECT sl.id, sl.slot_date, sl.start_time, sl.end_time, sl.lesson_type,
+         sl.max_students, sl.lesson_master_id,
+         lm.code as lesson_code, lm.name as lesson_name, lm.stage as lesson_stage,
+         f.name as room_name,
+         (SELECT COUNT(*) FROM reservations r ${ACTIVE_RESERVATION_JOIN}
+          WHERE r.slot_id = sl.id AND ${ACTIVE_RESERVATION_WHERE}) as active_count
+  FROM slots sl
+  LEFT JOIN lesson_master lm ON sl.lesson_master_id = lm.id
+  LEFT JOIN facilities f ON sl.facility_id = f.id
+  WHERE sl.slot_date >= ? AND sl.slot_date < date(?, '+14 days')
+    AND sl.license_type = ? AND sl.status = '受付中'
+  ORDER BY sl.slot_date, sl.start_time
+`;
+
+/** 自分の有効予約（期間内）*/
+export const SQL_BOOKING_MY_ACTIVE = `
+  SELECT r.id as reservation_id, r.slot_id, sl.slot_date, sl.start_time,
+         sl.lesson_master_id, lm.code as lesson_code, lm.name as lesson_name
+  FROM reservations r
+  JOIN slots sl ON r.slot_id = sl.id
+  LEFT JOIN lesson_master lm ON sl.lesson_master_id = lm.id
+  ${ACTIVE_RESERVATION_JOIN}
+  WHERE r.student_id = ? AND ${ACTIVE_RESERVATION_WHERE}
+    AND sl.slot_date >= ? AND sl.slot_date < date(?, '+14 days')
+`;
+
+/** 予約実行時：枠1件＋有効予約数（capacity判定用）*/
+export const SQL_BOOKING_SLOT_ONE = `
+  SELECT sl.id, sl.slot_date, sl.start_time, sl.lesson_type, sl.status,
+         sl.max_students, sl.lesson_master_id,
+         (SELECT COUNT(*) FROM reservations r ${ACTIVE_RESERVATION_JOIN}
+          WHERE r.slot_id = sl.id AND ${ACTIVE_RESERVATION_WHERE}) as active_count
+  FROM slots sl WHERE sl.id = ?
+`;
+
+/** 同時刻重複チェック（同じ生徒が同日・同開始時刻に有効予約を持つか）*/
+export const SQL_BOOKING_DUP_CHECK = `
+  SELECT r.id FROM reservations r
+  JOIN slots sl ON r.slot_id = sl.id
+  ${ACTIVE_RESERVATION_JOIN}
+  WHERE r.student_id = ? AND ${ACTIVE_RESERVATION_WHERE}
+    AND sl.slot_date = ? AND sl.start_time = ?
+`;
+
+/** 予約INSERT */
+export const SQL_BOOKING_RESERVE_INSERT = `
+  INSERT INTO reservations (slot_id, student_id, stage, status) VALUES (?, ?, ?, '予約済')
+`;
+
+/** 取消対象の予約が自分の有効予約か検証 */
+export const SQL_BOOKING_RESERVATION_VALID = `
+  SELECT r.id FROM reservations r
+  ${ACTIVE_RESERVATION_JOIN}
+  WHERE r.id = ? AND r.student_id = ? AND ${ACTIVE_RESERVATION_WHERE}
+`;
+
+/** 取消イベントINSERT（DELETE/UPDATEしない）*/
+export const SQL_BOOKING_CANCEL_INSERT = `
+  INSERT INTO reservation_cancellations (reservation_id, student_id) VALUES (?, ?)
+`;
+
+/** buildCurriculumProgress から「今受講可能な lesson_master.id 集合」を作る */
+export function availableLessonIdSet(
+  db: ReturnType<typeof getDb>,
+  studentId: string | number,
+  licenseType: string
+): Set<number> {
+  const progress = buildCurriculumProgress(db, studentId, licenseType);
+  const set = new Set<number>();
+  for (const p of progress) {
+    if (p.status === 'available') set.add(p.lesson.id);
+  }
+  return set;
 }
 
 // ────────────────────────────────────────────────────────────

@@ -1,6 +1,9 @@
 <%- include('../partials/layout-start', { title: instructor.name, current: 'instructors' }) %>
 
-<a href="/instructors" class="text-muted" style="font-size:13px">← 教官一覧</a>
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <a href="/instructors" class="text-muted" style="font-size:13px">← 教官一覧</a>
+  <a href="/instructors/<%= instructor.id %>/edit" class="btn btn-secondary" style="font-size:13px">編集</a>
+</div>
 
 <div class="grid-2 mt-4">
 

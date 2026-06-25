@@ -38,32 +38,35 @@
 .timetable .date-col.sun .dow { color: #dc2626; }
 .timetable .date-col.today-row { background: #fffbeb; border-left: 3px solid #f59e0b; }
 
-/* セル */
-.slot-cell {
-  display: block;
-  padding: 6px 4px;
-  font-size: 11px;
-  line-height: 1.4;
-  height: 54px;
+/* セル：番号チップを並べる（上下分割しない） */
+.cell-wrap {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  min-height: 40px;
+  align-items: stretch;
+  justify-content: center;
+}
+.chip {
+  flex: 1 1 auto;
+  min-width: 28px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  height: 34px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
   transition: filter 0.1s;
 }
-.slot-empty    { background: #f9fafb; color: #d1d5db; }
-.slot-open     { background: #d1fae5; color: #065f46; cursor: pointer; }
-.slot-open:hover { filter: brightness(0.93); }
-.slot-mine     { background: #bfdbfe; color: #1e40af; }
-.slot-full     { background: #fecaca; color: #991b1b; }
-.slot-gakka    { background: #ede9fe; color: #5b21b6; cursor: pointer; }
-.slot-gakka:hover { filter: brightness(0.93); }
-.slot-gakka.slot-mine { background: #c4b5fd; color: #3730a3; }
-
-.slot-cell .s-label { font-weight: 700; font-size: 12px; }
-.slot-cell .s-sub   { font-size: 10px; opacity: 0.85; margin-top: 1px; }
-.slot-cell .s-rem   { font-size: 10px; margin-top: 2px; }
+.chip:hover { filter: brightness(0.92); }
+.chip.empty { background: #f9fafb; color: #d1d5db; cursor: default; font-weight: 400; }
+.chip.tech  { background: #d1fae5; color: #065f46; }  /* 実技・空き */
+.chip.gakka { background: #ede9fe; color: #5b21b6; }  /* 学科・空き */
+.chip.mine  { background: #bfdbfe; color: #1e40af; }  /* 自分の予約 */
+.chip.full  { background: #fecaca; color: #991b1b; }  /* 満席 */
 
 /* 凡例 */
 .legend { display:flex; gap:14px; margin-bottom:14px; font-size:12px; align-items:center; flex-wrap:wrap; }
@@ -148,19 +151,14 @@
     grid[sl.slot_date][sl.start_time].push(sl);
   }
 
-  // 学科の時限番号（簡易：その日その時間の学科スロットに番号を振る）
-  let gakkaNum = 1;
-  const gakkaLabel = {};
-  for (const date of dateList) {
-    for (const time of allTimes) {
-      const cellSlots = (grid[date] && grid[date][time]) || [];
-      for (const sl of cellSlots) {
-        if (sl.lesson_type === '学科') {
-          gakkaLabel[sl.id] = gakkaNum++;
-        }
-      }
+  // カリキュラム番号：lesson_master.code（例「技能-4」「学科-①」）の "-" 以降を表示
+  const curriculumNo = (sl) => {
+    if (sl.lesson_code) {
+      const parts = sl.lesson_code.split('-');
+      return parts.length > 1 ? parts.slice(1).join('-') : sl.lesson_code;
     }
-  }
+    return sl.lesson_type === '学科' ? '学' : '技';
+  };
 %>
 
 <div class="card">
@@ -197,72 +195,34 @@
           <% for(const time of allTimes) { %>
           <%
             const cellSlots = (grid[date] && grid[date][time]) || [];
-            // 実技・学科を分ける
-            const jitsugiSlots = cellSlots.filter(sl => sl.lesson_type === '技能');
-            const gakkaSlots   = cellSlots.filter(sl => sl.lesson_type === '学科');
           %>
-          <td style="padding:2px;min-width:70px">
-            <%
-              // 実技：複数台あれば空き合算
-              const totalOpen = jitsugiSlots.reduce((a,sl) => a + (sl.max_students - sl.reserved_count), 0);
-              const myJitsugi = jitsugiSlots.find(sl => mySlotIds.includes(sl.id));
-              const gakkaSl   = gakkaSlots[0];
-              const myGakka   = gakkaSlots.find(sl => mySlotIds.includes(sl.id));
-            %>
-
-            <%# 実技セル %>
-            <% if (myJitsugi) { %>
-              <div class="slot-cell slot-mine">
-                <span class="s-label">✓ 技能</span>
-                <span class="s-sub"><%= myJitsugi.vehicle_no || '' %></span>
-              </div>
-            <% } else if (jitsugiSlots.length > 0 && totalOpen > 0) { %>
-              <div class="slot-cell slot-open"
-                onclick="openModal(<%= jitsugiSlots.find(sl => sl.max_students - sl.reserved_count > 0).id %>, '<%= date %>', '<%= time %>', '<%= jitsugiSlots[0].end_time %>', '技能', '<%= jitsugiSlots.find(sl => sl.max_students - sl.reserved_count > 0).vehicle_no || '' %>', <%= totalOpen %>)">
-                <span class="s-label">技能</span>
-                <span class="s-rem">残 <%= totalOpen %></span>
-              </div>
-            <% } else if (jitsugiSlots.length > 0) { %>
-              <% const fullSlotId = jitsugiSlots[0].id; %>
-              <form method="post" action="/waitlist/join" style="margin:0">
-                <input type="hidden" name="slot_id" value="<%= fullSlotId %>">
-                <input type="hidden" name="student_id" value="<%= student.id %>">
-                <div class="slot-cell slot-full" style="cursor:pointer" onclick="this.closest('form').submit()" title="キャンセル待ちに登録">
-                  <span class="s-label">技能</span>
-                  <span class="s-sub" style="font-size:9px">待機登録</span>
-                </div>
-              </form>
-            <% } %>
-
-            <%# 学科セル %>
-            <% if (gakkaSl) { %>
-            <%
-              const gRemaining = gakkaSl.max_students - gakkaSl.reserved_count;
-              const gLabel = '第' + (gakkaLabel[gakkaSl.id] || '?') + '限';
-            %>
-              <% if (myGakka) { %>
-              <div class="slot-cell slot-gakka slot-mine" style="margin-top:2px">
-                <span class="s-label">✓ <%= gLabel %></span>
-                <span class="s-sub">学科</span>
-              </div>
-              <% } else if (gRemaining > 0) { %>
-              <div class="slot-cell slot-gakka" style="margin-top:2px"
-                onclick="openModal(<%= gakkaSl.id %>, '<%= date %>', '<%= time %>', '<%= gakkaSl.end_time %>', '学科', '教室', <%= gRemaining %>)">
-                <span class="s-label"><%= gLabel %></span>
-                <span class="s-rem">残 <%= gRemaining %></span>
-              </div>
+          <td style="padding:0;min-width:70px">
+            <div class="cell-wrap">
+              <% if (cellSlots.length === 0) { %>
+                <div class="chip empty">—</div>
               <% } else { %>
-              <div class="slot-cell slot-full" style="margin-top:2px">
-                <span class="s-label"><%= gLabel %></span>
-                <span class="s-sub">満席</span>
-              </div>
+                <% cellSlots.forEach(function(sl) {
+                     const isMine  = mySlotIds.includes(sl.id);
+                     const isGakka = sl.lesson_type === '学科';
+                     const isFull  = (sl.max_students - sl.reserved_count) <= 0;
+                     const no      = curriculumNo(sl);
+                     const label   = sl.lesson_code ? (sl.lesson_code + ' ' + (sl.lesson_name || '')) : sl.lesson_type;
+                     let cls = 'tech';
+                     if (isMine)      cls = 'mine';
+                     else if (isFull) cls = 'full';
+                     else if (isGakka) cls = 'gakka';
+                %>
+                  <% if (isMine) { %>
+                    <div class="chip mine" title="予約済み｜<%= label %>" style="cursor:default"><%= no %></div>
+                  <% } else if (isFull) { %>
+                    <div class="chip full" title="満席｜タップでキャンセル待ち登録" onclick="joinWaitlist(<%= sl.id %>)"><%= no %></div>
+                  <% } else { %>
+                    <div class="chip <%= cls %>" title="<%= label %>"
+                      onclick="openModal(<%= sl.id %>, '<%= date %>', '<%= time %>', '<%= sl.end_time %>', '<%= label.replace(/'/g, '') %>', '<%= (sl.facility_name || '').replace(/'/g, '') %>')"><%= no %></div>
+                  <% } %>
+                <% }); %>
               <% } %>
-            <% } %>
-
-            <% if(cellSlots.length === 0) { %>
-              <div class="slot-cell slot-empty">—</div>
-            <% } %>
-
+            </div>
           </td>
           <% } %>
         </tr>
@@ -279,9 +239,8 @@
     <div class="modal-title">この枠を予約しますか？</div>
     <div class="modal-row"><span>日付</span><span id="m-date"></span></div>
     <div class="modal-row"><span>時限</span><span id="m-time"></span></div>
-    <div class="modal-row"><span>種別</span><span id="m-type"></span></div>
+    <div class="modal-row"><span>教習</span><span id="m-type"></span></div>
     <div class="modal-row"><span>車両・教室</span><span id="m-vehicle"></span></div>
-    <div class="modal-row"><span>残席</span><span id="m-rem"></span></div>
     <div class="modal-row" style="align-items:center">
       <span>段階</span>
       <select id="m-stage" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">
@@ -302,17 +261,26 @@
 </div>
 
 <script>
-function openModal(slotId, date, startTime, endTime, type, vehicle, remaining) {
+function openModal(slotId, date, startTime, endTime, type, vehicle) {
   document.getElementById('m-slot-id').value = slotId;
   document.getElementById('m-date-hidden').value = date;
   document.getElementById('m-date').textContent = date;
   document.getElementById('m-time').textContent = startTime + '〜' + endTime;
   document.getElementById('m-type').textContent = type;
   document.getElementById('m-vehicle').textContent = vehicle || '—';
-  document.getElementById('m-rem').textContent = '残 ' + remaining;
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function joinWaitlist(slotId) {
+  if (!confirm('この枠は満席です。キャンセル待ちに登録しますか？')) return;
+  const f = document.createElement('form');
+  f.method = 'post';
+  f.action = '/waitlist/join';
+  f.innerHTML = '<input type="hidden" name="slot_id" value="' + slotId + '">'
+              + '<input type="hidden" name="student_id" value="<%= student.id %>">';
+  document.body.appendChild(f);
+  f.submit();
+}
 function submitReservation() {
   document.getElementById('m-stage-hidden').value = document.getElementById('m-stage').value;
   document.getElementById('reserve-form').submit();
