@@ -1,39 +1,95 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/schema';
 import { promoteWaitlist } from './waitlist';
+import { buildCurriculumProgress } from '../db/queries';
 
 const router = Router();
+
+// admin一覧の組み立て（教習生名・番号・実施教習を含める）
+function loadAdminSlots(db: ReturnType<typeof getDb>, date: string, instructorId?: string) {
+  let sql = `
+    SELECT s.*, i.name as instructor_name, f.name as facility_name, f.category as facility_category,
+           lm.code as lesson_code, lm.name as lesson_name,
+           COUNT(r.id) as reserved_count
+    FROM slots s
+    JOIN instructors i ON s.instructor_id = i.id
+    LEFT JOIN facilities f ON s.facility_id = f.id
+    LEFT JOIN lesson_master lm ON s.lesson_master_id = lm.id
+    LEFT JOIN reservations r ON r.slot_id = s.id AND r.status = '予約済'
+    WHERE s.slot_date = ?`;
+  const params: string[] = [date];
+  if (instructorId) { sql += ' AND s.instructor_id = ?'; params.push(instructorId); }
+  sql += ' GROUP BY s.id ORDER BY s.start_time, i.name';
+  const slots = db.prepare(sql).all(...params) as Record<string, any>[];
+
+  // 各枠の予約生徒（教習生番号・名）
+  const reserved = db.prepare(`
+    SELECT r.slot_id, st.id as student_id, st.name as student_name, st.student_no
+    FROM reservations r
+    JOIN students st ON r.student_id = st.id
+    JOIN slots s ON r.slot_id = s.id
+    WHERE r.status = '予約済' AND s.slot_date = ?
+    ORDER BY st.name
+  `).all(date) as { slot_id: number; student_id: number; student_name: string; student_no: string | null }[];
+
+  const bySlot: Record<number, typeof reserved> = {};
+  for (const row of reserved) (bySlot[row.slot_id] ||= []).push(row);
+  for (const s of slots) s.reserved_students = bySlot[s.id] || [];
+  return slots;
+}
 
 // 事務：スロット一覧 & 作成フォーム
 router.get('/admin', (req: Request, res: Response) => {
   const db = getDb();
   try {
     const date = req.query.date as string || new Date().toISOString().split('T')[0];
+    const instructorId = (req.query.instructor_id as string) || '';
 
-    const slots = db.prepare(`
-      SELECT s.*, i.name as instructor_name, f.name as facility_name, f.category as facility_category,
-             COUNT(r.id) as reserved_count
-      FROM slots s
-      JOIN instructors i ON s.instructor_id = i.id
-      LEFT JOIN facilities f ON s.facility_id = f.id
-      LEFT JOIN reservations r ON r.slot_id = s.id AND r.status = '予約済'
-      WHERE s.slot_date = ?
-      GROUP BY s.id ORDER BY s.start_time, i.name
-    `).all(date);
-
+    const slots = loadAdminSlots(db, date, instructorId || undefined);
     const instructors = db.prepare(`SELECT * FROM instructors WHERE status = '在籍' ORDER BY name`).all();
     const facilities = db.prepare(`SELECT * FROM facilities WHERE status = '使用可' ORDER BY category, name`).all();
-    res.render('reservations/admin', { slots, date, instructors, facilities, error: null });
+    const students = db.prepare(`SELECT id, name, student_no, license_type FROM students WHERE status = '在校' ORDER BY name`).all();
+    const lessons = db.prepare(`SELECT id, code, name, lesson_type, stage FROM lesson_master ORDER BY sort_order`).all();
+
+    res.render('reservations/admin', { slots, date, instructorId, instructors, facilities, students, lessons, error: null });
   } finally {
     db.close();
   }
 });
 
-// 事務：スロット作成（ダブルブッキングチェック付き）
-router.post('/admin/slots', (req: Request, res: Response) => {
-  const { slot_date, start_time, end_time, instructor_id, facility_id, lesson_type, license_type, max_students } = req.body;
+// 事務：指定生徒の選択可能な教習（受講済を除外する暫定対応）
+// ※ Step3 の t_student_lesson_plan 投入後に「その生徒の課程」に再接続する
+router.get('/admin/student-lessons/:studentId', (req: Request, res: Response) => {
   const db = getDb();
   try {
+    const student = db.prepare('SELECT license_type FROM students WHERE id = ?').get(req.params.studentId) as { license_type: string } | undefined;
+    if (!student) { res.json({ lessons: [] }); return; }
+    const progress = buildCurriculumProgress(db, String(req.params.studentId), student.license_type);
+    // 受講済（completed）は選択不可。available/locked のみ返し、status を添える
+    const lessons = progress
+      .filter(p => p.status !== 'completed')
+      .map(p => ({ id: p.lesson.id, code: p.lesson.code, name: p.lesson.name, status: p.status }));
+    res.json({ lessons });
+  } finally {
+    db.close();
+  }
+});
+
+// 事務：スロット作成（ダブルブッキングチェック付き・教習生／実施教習の指定可）
+router.post('/admin/slots', (req: Request, res: Response) => {
+  const { slot_date, start_time, end_time, instructor_id, facility_id, lesson_type, license_type, max_students,
+          lesson_master_id, student_id } = req.body;
+  const db = getDb();
+  try {
+    const rerender = (errMsg: string) => {
+      const slots = loadAdminSlots(db, slot_date);
+      const instructors = db.prepare(`SELECT * FROM instructors WHERE status = '在籍' ORDER BY name`).all();
+      const facilities = db.prepare(`SELECT * FROM facilities WHERE status = '使用可' ORDER BY category, name`).all();
+      const students = db.prepare(`SELECT id, name, student_no, license_type FROM students WHERE status = '在校' ORDER BY name`).all();
+      const lessons = db.prepare(`SELECT id, code, name, lesson_type, stage FROM lesson_master ORDER BY sort_order`).all();
+      return res.render('reservations/admin', { slots, date: slot_date, instructorId: '', instructors, facilities, students, lessons, error: errMsg });
+    };
+
     const instrDup = db.prepare(`
       SELECT id FROM slots WHERE slot_date=? AND instructor_id=? AND status='受付中'
       AND NOT (end_time <= ? OR start_time >= ?)
@@ -45,24 +101,32 @@ router.post('/admin/slots', (req: Request, res: Response) => {
     `).get(slot_date, facility_id, start_time, end_time) : null;
 
     if (instrDup || facDup) {
-      const slots = db.prepare(`
-        SELECT s.*, i.name as instructor_name, f.name as facility_name, f.category as facility_category,
-               COUNT(r.id) as reserved_count
-        FROM slots s JOIN instructors i ON s.instructor_id = i.id
-        LEFT JOIN facilities f ON s.facility_id = f.id
-        LEFT JOIN reservations r ON r.slot_id = s.id AND r.status = '予約済'
-        WHERE s.slot_date = ? GROUP BY s.id ORDER BY s.start_time, i.name
-      `).all(slot_date);
-      const instructors = db.prepare(`SELECT * FROM instructors WHERE status = '在籍' ORDER BY name`).all();
-      const facilities = db.prepare(`SELECT * FROM facilities WHERE status = '使用可' ORDER BY category, name`).all();
-      const errMsg = instrDup ? 'この教官はすでに同時間帯に枠があります' : 'この設備はすでに同時間帯に割当済みです（ダブルブッキング）';
-      return res.render('reservations/admin', { slots, date: slot_date, instructors, facilities, error: errMsg });
+      return rerender(instrDup ? 'この教官はすでに同時間帯に枠があります' : 'この設備はすでに同時間帯に割当済みです（ダブルブッキング）');
     }
 
-    db.prepare(`
-      INSERT INTO slots (slot_date,start_time,end_time,instructor_id,facility_id,lesson_type,license_type,max_students)
-      VALUES (?,?,?,?,?,?,?,?)
-    `).run(slot_date, start_time, end_time, instructor_id, facility_id||null, lesson_type, license_type, max_students||1);
+    // 受講済み教習は割当不可（暫定：buildCurriculumProgress の completed を弾く）
+    if (student_id && lesson_master_id) {
+      const stu = db.prepare('SELECT license_type FROM students WHERE id = ?').get(student_id) as { license_type: string } | undefined;
+      if (stu) {
+        const progress = buildCurriculumProgress(db, String(student_id), stu.license_type);
+        const target = progress.find(p => p.lesson.id === Number(lesson_master_id));
+        if (target && target.status === 'completed') {
+          return rerender('指定された教習は受講済みのため割当できません');
+        }
+      }
+    }
+
+    const result = db.prepare(`
+      INSERT INTO slots (slot_date,start_time,end_time,instructor_id,facility_id,lesson_type,license_type,max_students,lesson_master_id)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `).run(slot_date, start_time, end_time, instructor_id, facility_id||null, lesson_type, license_type, max_students||1, lesson_master_id||null);
+
+    // 教習生を指定した場合は予約も作成（枠に紐付け）
+    if (student_id) {
+      db.prepare(`INSERT INTO reservations (slot_id, student_id, stage, status) VALUES (?,?,?, '予約済')`)
+        .run(Number(result.lastInsertRowid), student_id, '第一段階');
+    }
+
     res.redirect(`/reservations/admin?date=${slot_date}`);
   } finally {
     db.close();

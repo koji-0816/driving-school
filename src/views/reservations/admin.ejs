@@ -71,16 +71,45 @@
         <input type="number" name="max_students" value="1" min="1" max="30"
                style="width:60px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
       </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">教習生（任意）</div>
+        <select name="student_id" id="sel-student" onchange="loadStudentLessons()"
+                style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:140px">
+          <option value="">指定しない</option>
+          <% for(const st of students) { %>
+            <option value="<%= st.id %>"><%= st.name %><%= st.student_no ? '（' + st.student_no + '）' : '' %></option>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <div class="text-muted" style="margin-bottom:4px">実施する教習（任意）</div>
+        <select name="lesson_master_id" id="sel-lesson"
+                style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:200px">
+          <option value="">指定しない</option>
+          <% for(const l of lessons) { %>
+            <option value="<%= l.id %>" data-stage="<%= l.stage %>"><%= l.code %> <%= l.name %></option>
+          <% } %>
+        </select>
+      </div>
       <button type="submit" class="btn btn-primary">追加</button>
     </form>
+    <div class="text-muted" style="margin-top:8px;font-size:12px">
+      ※ 教習生を選ぶと、受講済みの教習は実施教習リストから除外されます（暫定判定）
+    </div>
   </div>
 </div>
 
 <div class="card">
-  <div class="card-header" style="display:flex;align-items:center;gap:16px">
+  <div class="card-header" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     教習枠一覧
-    <form method="get" style="display:flex;gap:8px;margin:0">
+    <form method="get" style="display:flex;gap:8px;margin:0;align-items:center">
       <input type="date" name="date" value="<%= date %>" style="padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+      <select name="instructor_id" style="padding:5px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+        <option value="">全指導員</option>
+        <% for(const i of instructors) { %>
+          <option value="<%= i.id %>" <%= String(instructorId) === String(i.id) ? 'selected' : '' %>><%= i.name %></option>
+        <% } %>
+      </select>
       <button type="submit" class="btn btn-secondary">表示</button>
     </form>
   </div>
@@ -89,11 +118,26 @@
       <p class="text-muted">この日の枠はありません</p>
     <% } else { %>
     <table>
-      <tr><th>時限</th><th>教官</th><th>設備</th><th>種別</th><th>車種</th><th>予約/定員</th><th>状態</th><th></th></tr>
+      <tr><th>時限</th><th>教官</th><th>教習生</th><th>実施教習</th><th>設備</th><th>種別</th><th class="text-muted" style="font-weight:400">予約/定員</th><th></th></tr>
       <% for(const s of slots) { %>
       <tr>
         <td style="white-space:nowrap"><%= s.start_time %>〜<%= s.end_time %></td>
         <td><%= s.instructor_name %></td>
+        <td>
+          <% if(s.reserved_students && s.reserved_students.length > 0) { %>
+            <% for(const rs of s.reserved_students) { %>
+              <div style="font-size:13px">
+                <a href="/students/<%= rs.student_id %>"><%= rs.student_name %></a>
+                <% if(rs.student_no) { %><span class="text-muted" style="font-size:11px">（<%= rs.student_no %>）</span><% } %>
+              </div>
+            <% } %>
+          <% } else { %><span class="text-muted">—</span><% } %>
+        </td>
+        <td>
+          <% if(s.lesson_code) { %>
+            <span class="badge badge-blue" style="margin-right:2px"><%= s.lesson_code %></span><%= s.lesson_name || '' %>
+          <% } else { %><span class="text-muted">—</span><% } %>
+        </td>
         <td>
           <% if(s.facility_name) { %>
             <span class="badge <%= s.facility_category === '車両' ? 'badge-blue' : s.facility_category === '教室' ? 'badge-green' : 'badge-purple' %>">
@@ -103,13 +147,7 @@
           <% } else { %>—<% } %>
         </td>
         <td><%= s.lesson_type %></td>
-        <td><span class="badge badge-blue"><%= s.license_type %></span></td>
-        <td>
-          <span class="badge <%= s.reserved_count >= s.max_students ? 'badge-red' : 'badge-green' %>">
-            <%= s.reserved_count %>/<%= s.max_students %>
-          </span>
-        </td>
-        <td><span class="badge <%= s.status === '受付中' ? 'badge-green' : 'badge-gray' %>"><%= s.status %></span></td>
+        <td class="text-muted" style="font-size:12px"><%= s.reserved_count %>/<%= s.max_students %></td>
         <td>
           <form method="post" action="/reservations/admin/slots/<%= s.id %>/delete"
                 onsubmit="return confirm('この枠を削除しますか？予約も削除されます。')">
@@ -122,5 +160,29 @@
     <% } %>
   </div>
 </div>
+
+<script>
+// 教習生を選ぶと受講済みを除いた実施教習リストに差し替える（暫定判定）
+function loadStudentLessons() {
+  const sid = document.getElementById('sel-student').value;
+  const sel = document.getElementById('sel-lesson');
+  if (!sid) {
+    // 全教習に戻す（ページ内の初期optionを保持していないので簡易にリロード無しで全件再構築はしない）
+    return;
+  }
+  fetch('/reservations/admin/student-lessons/' + sid)
+    .then(r => r.json())
+    .then(d => {
+      sel.innerHTML = '<option value="">指定しない</option>';
+      for (const l of d.lessons) {
+        const o = document.createElement('option');
+        o.value = l.id;
+        o.textContent = l.code + ' ' + l.name + (l.status === 'locked' ? '（前提未達）' : '');
+        if (l.status === 'locked') o.disabled = true;
+        sel.appendChild(o);
+      }
+    });
+}
+</script>
 
 <%- include('../partials/layout-end') %>
