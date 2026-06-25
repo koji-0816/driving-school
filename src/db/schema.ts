@@ -380,6 +380,20 @@ export function initDb(): void {
         FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id)
       );
 
+      -- 生徒の免除事実（受講実績とは別ソース。評価時に completedCodes へ合流）
+      --   reason_code は不変コード（日本語禁止）。将来 m_exemption_reason でマスタ化
+      CREATE TABLE IF NOT EXISTS t_student_exemption (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id       INTEGER NOT NULL,
+        lesson_master_id INTEGER NOT NULL,
+        reason_code      TEXT NOT NULL,
+        source_course_id INTEGER NOT NULL,   -- 免除判断の根拠コース版（証跡・不変）
+        exempted_at      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (student_id)       REFERENCES students(id),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id),
+        FOREIGN KEY (source_course_id) REFERENCES m_course(id)
+      );
+
       -- 生徒の教習計画（入校時スナップショット。展開後はマスター参照を切る）
       CREATE TABLE IF NOT EXISTS t_student_lesson_plan (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,

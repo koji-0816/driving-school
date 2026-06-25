@@ -296,6 +296,15 @@ export function buildCurriculumProgress(
     if (code) completedCodes.add(code);
   }
 
+  // 免除済み（第3の事実ソース）。受講ではないが前提充足の観点では「済」とみなす。
+  // 免除科目は plan に無く一覧には出ない。前提判定でのみ合流する。
+  const exemptions = db.prepare(`
+    SELECT lm.code FROM t_student_exemption e
+    JOIN lesson_master lm ON lm.id = e.lesson_master_id
+    WHERE e.student_id = ?
+  `).all(studentId) as { code: string }[];
+  for (const e of exemptions) completedCodes.add(e.code);
+
   // この license_type の全ルールを一括取得
   const allRules = db.prepare(`
     SELECT cr.* FROM curriculum_rules cr
@@ -453,13 +462,13 @@ export function expandStudentLessonPlan(
   }
   if (heldIds.length === 0) return 0;
 
-  // 適格コースを整数FKのJOINで導出（所持複数は priority 最大を採用）
+  // 適格コースを整数FKのJOINで導出（所持複数は priority 最大を採用）。matched held も拾う
   const placeholders = heldIds.map(() => '?').join(',');
   const elig = db.prepare(`
-    SELECT course_family FROM m_course_eligibility
+    SELECT course_family, held_license_id FROM m_course_eligibility
     WHERE target_license_id = ? AND held_license_id IN (${placeholders})
     ORDER BY priority DESC, valid_from DESC LIMIT 1
-  `).get(targetLicenseId, ...heldIds) as { course_family: string } | undefined;
+  `).get(targetLicenseId, ...heldIds) as { course_family: string; held_license_id: number } | undefined;
   if (!elig) return 0;
 
   // 現行版（valid_from <= 入校日 の最新）を導出
@@ -488,7 +497,74 @@ export function expandStudentLessonPlan(
   for (const l of lessons) {
     ins.run(studentId, l.lesson_master_id, l.seq, l.is_mikiwame, l.required_count, course.id);
   }
+
+  // 免除を「標準コース（所持なし）− 選択コース」の差分として事実INSERT（受講実績とは別ソース）
+  expandStudentExemption(db, studentId, targetLicenseId, elig.held_license_id, course.id,
+    new Set(lessons.map(l => l.lesson_master_id)), enrollmentDate);
+
   return lessons.length;
+}
+
+/**
+ * 免除事実の生成。標準コース（同 target × 所持なし）に在って選択コースに無い科目を
+ * 「免除済」として t_student_exemption へINSERTする。
+ *  - reason_code は held の license_code から機械生成（'HELD_'+code）。日本語を介さない
+ *  - source_course_id は選択コース版（証跡・不変）
+ *  - 所持なし（標準コース＝選択コース）や差分ゼロのときは何もしない
+ *  - 既に免除行があればスキップ（二重INSERT防止）
+ */
+function expandStudentExemption(
+  db: ReturnType<typeof getDb>,
+  studentId: number | string,
+  targetLicenseId: number,
+  heldLicenseId: number,
+  selectedCourseId: number,
+  selectedLessonIds: Set<number>,
+  enrollmentDate: string
+): void {
+  // 所持なし本人は免除なし
+  const none = db.prepare("SELECT id FROM m_license_type WHERE license_code = 'NONE'").get() as { id: number } | undefined;
+  if (none && heldLicenseId === none.id) return;
+
+  // 既に免除済みなら何もしない
+  const existing = db.prepare('SELECT 1 FROM t_student_exemption WHERE student_id = ? LIMIT 1').get(studentId);
+  if (existing) return;
+
+  // reason_code は held の不変コードから機械生成
+  const held = db.prepare('SELECT license_code FROM m_license_type WHERE id = ?').get(heldLicenseId) as { license_code: string } | undefined;
+  if (!held) return;
+  const reasonCode = `HELD_${held.license_code}`;
+
+  // 標準コース（同 target × 所持なし）の現行版を導出
+  if (!none) return;
+  const stdElig = db.prepare(`
+    SELECT course_family FROM m_course_eligibility
+    WHERE target_license_id = ? AND held_license_id = ?
+    ORDER BY priority DESC, valid_from DESC LIMIT 1
+  `).get(targetLicenseId, none.id) as { course_family: string } | undefined;
+  if (!stdElig) return;
+
+  const stdCourse = db.prepare(`
+    SELECT id FROM m_course
+    WHERE course_family = ? AND valid_from <= ?
+    ORDER BY valid_from DESC, version DESC LIMIT 1
+  `).get(stdElig.course_family, enrollmentDate) as { id: number } | undefined;
+  if (!stdCourse) return;
+
+  // 差分（標準に在って選択に無い科目）＝免除科目
+  const stdLessons = db.prepare(
+    'SELECT lesson_master_id FROM m_course_lesson WHERE course_id = ?'
+  ).all(stdCourse.id) as { lesson_master_id: number }[];
+
+  const ins = db.prepare(`
+    INSERT INTO t_student_exemption (student_id, lesson_master_id, reason_code, source_course_id)
+    VALUES (?,?,?,?)
+  `);
+  for (const s of stdLessons) {
+    if (!selectedLessonIds.has(s.lesson_master_id)) {
+      ins.run(studentId, s.lesson_master_id, reasonCode, selectedCourseId);
+    }
+  }
 }
 
 /** buildCurriculumProgress から「今受講可能な lesson_master.id 集合」を作る */
