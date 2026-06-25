@@ -1,4 +1,5 @@
 import { getDb } from './schema';
+import { expandStudentLessonPlan } from './queries';
 
 export function seedDb(): void {
   const db = getDb();
@@ -330,6 +331,43 @@ export function seedCourses(): void {
     }
 
     console.log('教習コースマスター投入完了（※暫定・免除は要法令確認）');
+  } finally {
+    db.close();
+  }
+}
+
+// デモ用サンプル生徒（二輪所持・取得希望AT）。plan/免除の表示を公開版でも見せるため。
+// 冪等：既にいればスキップ。seedCourses の後に呼ぶこと（コースが必要）。
+export function seedSampleStudent(): void {
+  const db = getDb();
+  try {
+    const exist = db.prepare("SELECT id FROM students WHERE student_no = 'D-001'").get();
+    if (exist) return;
+
+    const lic = (code: string): number | null => {
+      const r = db.prepare('SELECT id FROM m_license_type WHERE license_code = ?').get(code) as { id: number } | undefined;
+      return r ? r.id : null;
+    };
+    const atId = lic('FUTSU_AT');
+    const nirinId = lic('NIRIN_FUTSU');
+    if (!atId || !nirinId) return;  // 免許マスタ未投入なら何もしない
+
+    const result = db.prepare(`
+      INSERT INTO students
+        (name,kana,license_type,student_type,enrollment_date,status,
+         student_no,birth_date,target_license_id,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,datetime('now','localtime'))
+    `).run('デモ 二輪太郎', 'デモ ニリンタロウ', '普通車', '通学', '2026-06-20', '在校',
+           'D-001', '2002-05-05', atId);
+    const sid = Number(result.lastInsertRowid);
+
+    db.prepare(`INSERT INTO t_student_held_license (student_id, license_type_id, acquired_date) VALUES (?,?,?)`)
+      .run(sid, nirinId, '2021-03-10');
+
+    // plan/免除を展開（評価エンジンが免除済みを合流する）
+    expandStudentLessonPlan(db, sid, atId, [nirinId], '2026-06-20');
+
+    console.log('デモ用サンプル生徒（二輪太郎 D-001）投入完了');
   } finally {
     db.close();
   }
