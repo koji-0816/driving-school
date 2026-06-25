@@ -94,7 +94,7 @@
       <button type="submit" class="btn btn-primary">追加</button>
     </form>
     <div class="text-muted" style="margin-top:8px;font-size:12px">
-      ※ 教習生を選ぶと、受講済みの教習は実施教習リストから除外されます（暫定判定）
+      ※ 教習生を選ぶと、受講済みの教習は実施教習リストから除外されます（その生徒の課程／前提条件で判定）
     </div>
   </div>
 </div>
@@ -162,7 +162,7 @@
 </div>
 
 <script>
-// 教習生を選ぶと受講済みを除いた実施教習リストに差し替える（暫定判定）
+// 教習生を選ぶと受講済みを除いた実施教習リストに差し替える（その生徒の課程／前提条件で判定）
 function loadStudentLessons() {
   const sid = document.getElementById('sel-student').value;
   const sel = document.getElementById('sel-lesson');

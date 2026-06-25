@@ -57,8 +57,8 @@ router.get('/admin', (req: Request, res: Response) => {
   }
 });
 
-// 事務：指定生徒の選択可能な教習（受講済を除外する暫定対応）
-// ※ Step3 の t_student_lesson_plan 投入後に「その生徒の課程」に再接続する
+// 事務：指定生徒の選択可能な教習（受講済を除外）
+// buildCurriculumProgress 経由。plan有り生徒は plan の課程集合、plan無し生徒は従来 lesson_master フォールバック（Step3で接続済み）
 router.get('/admin/student-lessons/:studentId', (req: Request, res: Response) => {
   const db = getDb();
   try {
@@ -104,7 +104,7 @@ router.post('/admin/slots', (req: Request, res: Response) => {
       return rerender(instrDup ? 'この教官はすでに同時間帯に枠があります' : 'この設備はすでに同時間帯に割当済みです（ダブルブッキング）');
     }
 
-    // 受講済み教習は割当不可（暫定：buildCurriculumProgress の completed を弾く）
+    // 受講済み教習は割当不可（buildCurriculumProgress の completed を弾く。plan有り生徒はplan課程で判定）
     if (student_id && lesson_master_id) {
       const stu = db.prepare('SELECT license_type FROM students WHERE id = ?').get(student_id) as { license_type: string } | undefined;
       if (stu) {
