@@ -340,6 +340,60 @@ export function initDb(): void {
         is_active   INTEGER NOT NULL DEFAULT 1,
         sort_order  INTEGER NOT NULL DEFAULT 0
       );
+
+      -- 教習コースヘッダ（取得免許×所持条件。INSERT only・現行版は valid_from 最新で導出）
+      CREATE TABLE IF NOT EXISTS m_course (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_family     TEXT NOT NULL,            -- 論理コース（版をまたいで不変）
+        version           INTEGER NOT NULL DEFAULT 1,
+        target_license_id INTEGER NOT NULL,
+        course_name       TEXT NOT NULL,
+        valid_from        TEXT NOT NULL,
+        note              TEXT,
+        created_at        TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        UNIQUE(course_family, version),
+        FOREIGN KEY (target_license_id) REFERENCES m_license_type(id)
+      );
+
+      -- コース適格（取得×所持→コース。判定は整数FKのJOINのみ。priorityで複数所持を解決）
+      CREATE TABLE IF NOT EXISTS m_course_eligibility (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_family     TEXT NOT NULL,
+        target_license_id INTEGER NOT NULL,
+        held_license_id   INTEGER NOT NULL,
+        priority          INTEGER NOT NULL DEFAULT 0,
+        valid_from        TEXT NOT NULL,
+        FOREIGN KEY (target_license_id) REFERENCES m_license_type(id),
+        FOREIGN KEY (held_license_id)   REFERENCES m_license_type(id)
+      );
+
+      -- コース明細（版に紐づく必要教習。免除は「明細に入れない」で表現）
+      CREATE TABLE IF NOT EXISTS m_course_lesson (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_id        INTEGER NOT NULL,
+        lesson_master_id INTEGER NOT NULL,
+        seq              INTEGER NOT NULL,
+        is_mikiwame      INTEGER NOT NULL DEFAULT 0,
+        required_count   INTEGER,
+        UNIQUE(course_id, lesson_master_id),
+        FOREIGN KEY (course_id)        REFERENCES m_course(id),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id)
+      );
+
+      -- 生徒の教習計画（入校時スナップショット。展開後はマスター参照を切る）
+      CREATE TABLE IF NOT EXISTS t_student_lesson_plan (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id       INTEGER NOT NULL,
+        lesson_master_id INTEGER NOT NULL,
+        seq              INTEGER NOT NULL,
+        is_mikiwame      INTEGER NOT NULL DEFAULT 0,
+        required_count   INTEGER NOT NULL,
+        source_course_id INTEGER NOT NULL,         -- 展開元の版（不変・as-of再現可）
+        planned_at       TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (student_id)       REFERENCES students(id),
+        FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id),
+        FOREIGN KEY (source_course_id) REFERENCES m_course(id)
+      );
     `);
 
     // students への列追加（冪等マイグレーション：無い列だけ ADD COLUMN）
@@ -348,6 +402,7 @@ export function initDb(): void {
       { name: 'birth_date',                type: 'TEXT' },  // 生年月日
       { name: 'provisional_acquired_date', type: 'TEXT' },  // 仮免取得日
       { name: 'booking_route_id',          type: 'INTEGER' }, // 予約経路 → m_booking_route
+      { name: 'target_license_id',         type: 'INTEGER' }, // 取得希望免許 → m_license_type（コース判定起点）
     ]);
   } finally {
     db.close();

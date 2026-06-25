@@ -262,6 +262,71 @@ export function seedMasters(): void {
   }
 }
 
+// ※暫定seed：免除内容は要法令・現場確認。正本ではない。
+//   二輪所持コースの「学科免除」は構造確認用。学科全免除/応急救護/技能時限は未確定。
+export function seedCourses(): void {
+  const db = getDb();
+  try {
+    const count = (db.prepare('SELECT COUNT(*) as c FROM m_course').get() as { c: number }).c;
+    if (count > 0) return;
+
+    const licId = (code: string): number => {
+      const r = db.prepare('SELECT id FROM m_license_type WHERE license_code = ?').get(code) as { id: number } | undefined;
+      if (!r) throw new Error(`m_license_type not found: ${code}`);
+      return r.id;
+    };
+
+    const VALID_FROM = '2026-04-01';
+    const insCourse = db.prepare(
+      `INSERT INTO m_course (course_family, version, target_license_id, course_name, valid_from, note) VALUES (?,?,?,?,?,?)`
+    );
+    const insElig = db.prepare(
+      `INSERT INTO m_course_eligibility (course_family, target_license_id, held_license_id, priority, valid_from) VALUES (?,?,?,?,?)`
+    );
+    const insCL = db.prepare(
+      `INSERT INTO m_course_lesson (course_id, lesson_master_id, seq, is_mikiwame, required_count) VALUES (?,?,?,?,?)`
+    );
+
+    // 普通車の科目カタログ（検定は除外＝buildCurriculumProgress同様、計画には積まない）
+    const lessons = db.prepare(`
+      SELECT id, code, lesson_type, name, sort_order
+      FROM lesson_master
+      WHERE license_type = '普通車' AND lesson_type != '検定'
+      ORDER BY sort_order
+    `).all() as { id: number; code: string; lesson_type: string; name: string; sort_order: number }[];
+
+    // 1コース分の明細を seq採番して投入。includeGakka=false で学科免除（明細に入れない）
+    const fillLessons = (courseId: number, includeGakka: boolean) => {
+      let seq = 1;
+      for (const lm of lessons) {
+        if (!includeGakka && lm.lesson_type === '学科') continue;  // ※暫定：学科免除を「入れない」で表現
+        const isMikiwame = lm.name.includes('みきわめ') ? 1 : 0;
+        insCL.run(courseId, lm.id, seq++, isMikiwame, null);
+      }
+    };
+
+    // 取得免許 × 所持条件 の4コース（version=1）
+    const courses: { family: string; target: string; name: string; held: string; priority: number; includeGakka: boolean }[] = [
+      { family: 'FUTSU_AT__NONE',  target: 'FUTSU_AT', name: '普通AT（所持免許なし）',   held: 'NONE',        priority: 0,  includeGakka: true  },
+      { family: 'FUTSU_AT__NIRIN', target: 'FUTSU_AT', name: '普通AT（二輪所持）',       held: 'NIRIN_FUTSU', priority: 10, includeGakka: false },
+      { family: 'FUTSU_MT__NONE',  target: 'FUTSU_MT', name: '普通MT（所持免許なし）',   held: 'NONE',        priority: 0,  includeGakka: true  },
+      { family: 'FUTSU_MT__NIRIN', target: 'FUTSU_MT', name: '普通MT（二輪所持）',       held: 'NIRIN_FUTSU', priority: 10, includeGakka: false },
+    ];
+
+    for (const c of courses) {
+      const tid = licId(c.target);
+      const result = insCourse.run(c.family, 1, tid, c.name, VALID_FROM, '※暫定seed：免除内容は要法令・現場確認');
+      const courseId = Number(result.lastInsertRowid);
+      insElig.run(c.family, tid, licId(c.held), c.priority, VALID_FROM);
+      fillLessons(courseId, c.includeGakka);
+    }
+
+    console.log('教習コースマスター投入完了（※暫定・免除は要法令確認）');
+  } finally {
+    db.close();
+  }
+}
+
 export function seedSlots(): void {
   const db = getDb();
   try {

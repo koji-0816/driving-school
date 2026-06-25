@@ -8,6 +8,7 @@ import {
   SQL_LICENSE_TYPES_ALL, SQL_BOOKING_ROUTES_ACTIVE,
   SQL_HELD_LICENSE_BY_STUDENT, SQL_HELD_LICENSE_INSERT,
   recordStudentChanges, logStudentEvent, buildCurriculumProgress,
+  expandStudentLessonPlan,
 } from '../db/queries';
 
 const router = Router();
@@ -140,7 +141,7 @@ router.post('/', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
           status, room_id, note,
-          student_no, birth_date, provisional_acquired_date, booking_route_id,
+          student_no, birth_date, provisional_acquired_date, booking_route_id, target_license_id,
           held_license_type_id, held_acquired_date, held_expiry_date } = req.body;
 
   if (!name || !kana || !enrollment_date) {
@@ -178,12 +179,18 @@ router.post('/', (req: Request, res: Response) => {
       name, kana, phone||null, email||null, license_type, student_type, enrollment_date,
       expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
       stage2_complete_date||null, status, room_id||null, note||null,
-      student_no||null, birth_date||null, provisional_acquired_date||null, booking_route_id||null
+      student_no||null, birth_date||null, provisional_acquired_date||null, booking_route_id||null,
+      target_license_id||null
     );
     const newId = Number(result.lastInsertRowid);
     // 所持免許は自由文字列で持たず t_student_held_license（m_license_type参照）に積む
     if (held_license_type_id) {
       db.prepare(SQL_HELD_LICENSE_INSERT).run(newId, held_license_type_id, held_acquired_date||null, held_expiry_date||null);
+    }
+    // 入校時に教習計画をスナップショット展開（取得免許が指定され判定可能な場合のみ）
+    if (target_license_id) {
+      const heldIds = held_license_type_id ? [Number(held_license_type_id)] : [];
+      expandStudentLessonPlan(db, newId, Number(target_license_id), heldIds, enrollment_date);
     }
     logStudentEvent(newId, 'enrollment', `入校: ${name}（${student_type}・${license_type}）`);
   } finally {
@@ -286,7 +293,7 @@ router.post('/:id/edit', (req: Request, res: Response) => {
   const { name, kana, phone, email, license_type, student_type, enrollment_date, expected_graduation,
           lesson_start_date, provisional_license_date, stage2_complete_date,
           status, room_id, note,
-          student_no, birth_date, provisional_acquired_date, booking_route_id,
+          student_no, birth_date, provisional_acquired_date, booking_route_id, target_license_id,
           held_license_type_id, held_acquired_date, held_expiry_date } = req.body;
 
   if (!name || !kana || !enrollment_date) {
@@ -332,6 +339,7 @@ router.post('/:id/edit', (req: Request, res: Response) => {
       expected_graduation||null, lesson_start_date||null, provisional_license_date||null,
       stage2_complete_date||null, status, newRoomId, note||null,
       student_no||null, birth_date||null, provisional_acquired_date||null, booking_route_id||null,
+      target_license_id||null,
       req.params.id
     );
 

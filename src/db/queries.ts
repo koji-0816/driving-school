@@ -19,8 +19,8 @@ export const SQL_STUDENT_INSERT = `
   INSERT INTO students
     (name,kana,phone,email,license_type,student_type,enrollment_date,expected_graduation,
      lesson_start_date,provisional_license_date,stage2_complete_date,status,room_id,note,
-     student_no,birth_date,provisional_acquired_date,booking_route_id,updated_at)
-  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))
+     student_no,birth_date,provisional_acquired_date,booking_route_id,target_license_id,updated_at)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))
 `;
 
 export const SQL_STUDENT_UPDATE = `
@@ -28,7 +28,7 @@ export const SQL_STUDENT_UPDATE = `
     name=?,kana=?,phone=?,email=?,license_type=?,student_type=?,enrollment_date=?,
     expected_graduation=?,lesson_start_date=?,provisional_license_date=?,stage2_complete_date=?,
     status=?,room_id=?,note=?,
-    student_no=?,birth_date=?,provisional_acquired_date=?,booking_route_id=?,
+    student_no=?,birth_date=?,provisional_acquired_date=?,booking_route_id=?,target_license_id=?,
     updated_at=datetime('now','localtime')
   WHERE id=?
 `;
@@ -219,14 +219,46 @@ const EXAM_TYPE_TO_CODE: Record<string, string> = {
  * 生徒のカリキュラム進捗を計算する。
  * 返り値の各要素に status: 'completed'|'available'|'locked' を付与。
  */
+/**
+ * 進捗計算の対象集合を決める。
+ *  plan有り → t_student_lesson_plan（その生徒の課程・required_count上書き）を対象にする
+ *  plan無し → 従来 lesson_master WHERE license_type=?（既存生徒のフォールバック）
+ */
+function getProgressLessonSet(
+  db: ReturnType<typeof getDb>,
+  studentId: string | number,
+  licenseType: string
+): LessonMaster[] {
+  const plan = db.prepare(`
+    SELECT lesson_master_id, required_count, seq
+    FROM t_student_lesson_plan WHERE student_id = ?
+  `).all(studentId) as { lesson_master_id: number; required_count: number; seq: number }[];
+
+  if (plan.length === 0) {
+    return db.prepare(
+      'SELECT * FROM lesson_master WHERE license_type = ? ORDER BY stage, sort_order'
+    ).all(licenseType) as LessonMaster[];
+  }
+
+  // plan優先：lesson_master を plan の id で引き、required_count を上書き、seq順に並べる
+  const planMap = new Map(plan.map(p => [p.lesson_master_id, p]));
+  const ids = plan.map(p => p.lesson_master_id);
+  const placeholders = ids.map(() => '?').join(',');
+  const lms = db.prepare(
+    `SELECT * FROM lesson_master WHERE id IN (${placeholders})`
+  ).all(...ids) as LessonMaster[];
+
+  return lms
+    .map(lm => ({ ...lm, required_count: planMap.get(lm.id)!.required_count ?? lm.required_count }))
+    .sort((a, b) => planMap.get(a.id)!.seq - planMap.get(b.id)!.seq);
+}
+
 export function buildCurriculumProgress(
   db: ReturnType<typeof getDb>,
   studentId: string | number,
   licenseType: string
 ): LessonProgress[] {
-  const lessonMasters = db.prepare(
-    'SELECT * FROM lesson_master WHERE license_type = ? ORDER BY stage, sort_order'
-  ).all(licenseType) as LessonMaster[];
+  const lessonMasters = getProgressLessonSet(db, studentId, licenseType);
 
   if (lessonMasters.length === 0) return [];
 
@@ -391,6 +423,73 @@ export const SQL_BOOKING_RESERVATION_VALID = `
 export const SQL_BOOKING_CANCEL_INSERT = `
   INSERT INTO reservation_cancellations (reservation_id, student_id) VALUES (?, ?)
 `;
+
+/**
+ * 入校時にコースを判定し、t_student_lesson_plan へスナップショット展開する。
+ *  - 判定は整数FKのJOINのみ（日本語・if・固定マップを使わない）
+ *  - 現行版は valid_from 最新で導出（m_course はUPDATEしない）
+ *  - 既にplanがあればスキップ（二重展開防止）
+ *  - 判定不能なら何もしない（従来フォールバックを維持）
+ * @returns 展開した明細件数（0 = 展開せず）
+ */
+export function expandStudentLessonPlan(
+  db: ReturnType<typeof getDb>,
+  studentId: number | string,
+  targetLicenseId: number | null | undefined,
+  heldLicenseIds: number[],
+  enrollmentDate: string
+): number {
+  if (!targetLicenseId) return 0;
+
+  // 既に展開済みなら何もしない
+  const existing = db.prepare('SELECT 1 FROM t_student_lesson_plan WHERE student_id = ? LIMIT 1').get(studentId);
+  if (existing) return 0;
+
+  // 所持免許が無ければ NONE で評価
+  const heldIds = heldLicenseIds.length > 0 ? heldLicenseIds : [];
+  if (heldIds.length === 0) {
+    const none = db.prepare("SELECT id FROM m_license_type WHERE license_code = 'NONE'").get() as { id: number } | undefined;
+    if (none) heldIds.push(none.id);
+  }
+  if (heldIds.length === 0) return 0;
+
+  // 適格コースを整数FKのJOINで導出（所持複数は priority 最大を採用）
+  const placeholders = heldIds.map(() => '?').join(',');
+  const elig = db.prepare(`
+    SELECT course_family FROM m_course_eligibility
+    WHERE target_license_id = ? AND held_license_id IN (${placeholders})
+    ORDER BY priority DESC, valid_from DESC LIMIT 1
+  `).get(targetLicenseId, ...heldIds) as { course_family: string } | undefined;
+  if (!elig) return 0;
+
+  // 現行版（valid_from <= 入校日 の最新）を導出
+  const course = db.prepare(`
+    SELECT id FROM m_course
+    WHERE course_family = ? AND valid_from <= ?
+    ORDER BY valid_from DESC, version DESC LIMIT 1
+  `).get(elig.course_family, enrollmentDate) as { id: number } | undefined;
+  if (!course) return 0;
+
+  // 明細をスナップショット展開（required_count は明細優先、無ければ lesson_master 既定）
+  const lessons = db.prepare(`
+    SELECT cl.lesson_master_id, cl.seq, cl.is_mikiwame,
+           COALESCE(cl.required_count, lm.required_count) AS required_count
+    FROM m_course_lesson cl
+    JOIN lesson_master lm ON lm.id = cl.lesson_master_id
+    WHERE cl.course_id = ?
+    ORDER BY cl.seq
+  `).all(course.id) as { lesson_master_id: number; seq: number; is_mikiwame: number; required_count: number }[];
+
+  const ins = db.prepare(`
+    INSERT INTO t_student_lesson_plan
+      (student_id, lesson_master_id, seq, is_mikiwame, required_count, source_course_id)
+    VALUES (?,?,?,?,?,?)
+  `);
+  for (const l of lessons) {
+    ins.run(studentId, l.lesson_master_id, l.seq, l.is_mikiwame, l.required_count, course.id);
+  }
+  return lessons.length;
+}
 
 /** buildCurriculumProgress から「今受講可能な lesson_master.id 集合」を作る */
 export function availableLessonIdSet(
