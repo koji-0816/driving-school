@@ -22,6 +22,7 @@ import graduationRouter from './routes/graduation';
 import appRouter from './routes/app';
 import studentBookingRouter from './routes/studentBooking';
 import bookingRoutesRouter from './routes/bookingRoutes';
+import coursesRouter from './routes/courses';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3002;
@@ -77,6 +78,7 @@ app.use('/graduation', graduationRouter);
 app.use('/app', appRouter);
 app.use('/student/booking', studentBookingRouter);
 app.use('/booking-routes', bookingRoutesRouter);
+app.use('/courses', coursesRouter);
 
 app.listen(PORT, () => {
   console.log(`教習所管理システム起動: http://localhost:${PORT}`);

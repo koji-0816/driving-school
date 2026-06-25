@@ -7,6 +7,7 @@ import {
   SQL_INSTRUCTOR_SCHEDULE,
   SQL_LICENSE_TYPES_ALL, SQL_BOOKING_ROUTES_ACTIVE,
   SQL_HELD_LICENSE_BY_STUDENT, SQL_HELD_LICENSE_INSERT,
+  SQL_STUDENT_PLAN, SQL_STUDENT_EXEMPTIONS,
   recordStudentChanges, logStudentEvent, buildCurriculumProgress,
   expandStudentLessonPlan,
 } from '../db/queries';
@@ -243,9 +244,16 @@ router.get('/:id', (req: Request, res: Response) => {
       "SELECT id, name FROM instructors WHERE status = '在籍' ORDER BY id"
     ).all() as { id: number; name: string }[];
 
+    // 教習コース・計画・免除（閲覧UI用）
+    const plan = db.prepare(SQL_STUDENT_PLAN).all(req.params.id) as Record<string, any>[];
+    const exemptions = db.prepare(SQL_STUDENT_EXEMPTIONS).all(req.params.id) as Record<string, any>[];
+    const isPlanBased = plan.length > 0;
+    const planCourse = isPlanBased ? { name: plan[0].course_name, family: plan[0].course_family, source_course_id: plan[0].source_course_id } : null;
+
     res.render('students/detail', {
       student, lessons, exams, stageMap, events,
       progress, availableForRecord, instructors,
+      plan, exemptions, isPlanBased, planCourse,
       ...calcDeadlines(student),
     });
   } finally {

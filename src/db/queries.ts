@@ -99,6 +99,62 @@ export const SQL_ROOM_UPDATE = `
 `;
 
 // ────────────────────────────────────────────────────────────
+// 教習コース閲覧・生徒のplan/免除（閲覧UI用）
+// ────────────────────────────────────────────────────────────
+
+// コース一覧（現行版のみ＝course_family内の valid_from 最新）＋明細件数
+export const SQL_COURSES_LIST = `
+  SELECT c.*, t.license_name AS target_license_name,
+         (SELECT COUNT(*) FROM m_course_lesson cl WHERE cl.course_id = c.id) AS lesson_count
+  FROM m_course c
+  JOIN m_license_type t ON t.id = c.target_license_id
+  WHERE c.id IN (
+    SELECT id FROM m_course c2
+    WHERE c2.version = (SELECT MAX(version) FROM m_course c3 WHERE c3.course_family = c2.course_family)
+  )
+  ORDER BY t.sort_order, c.course_family
+`;
+
+export const SQL_COURSE_ONE = `
+  SELECT c.*, t.license_name AS target_license_name
+  FROM m_course c JOIN m_license_type t ON t.id = c.target_license_id
+  WHERE c.id = ?
+`;
+
+export const SQL_COURSE_LESSONS = `
+  SELECT cl.seq, cl.is_mikiwame, cl.required_count,
+         lm.code, lm.name, lm.lesson_type, lm.stage
+  FROM m_course_lesson cl
+  JOIN lesson_master lm ON lm.id = cl.lesson_master_id
+  WHERE cl.course_id = ?
+  ORDER BY cl.seq
+`;
+
+// 生徒のplan（必要教習）＋展開元コース名
+export const SQL_STUDENT_PLAN = `
+  SELECT p.seq, p.is_mikiwame, p.required_count, p.source_course_id, p.planned_at,
+         lm.code, lm.name, lm.lesson_type, lm.stage,
+         c.course_name, c.course_family
+  FROM t_student_lesson_plan p
+  JOIN lesson_master lm ON lm.id = p.lesson_master_id
+  JOIN m_course c ON c.id = p.source_course_id
+  WHERE p.student_id = ?
+  ORDER BY p.seq
+`;
+
+// 生徒の免除済み科目（reason_code→表示名は m_exemption_reason で変換。無ければ '免除'）
+export const SQL_STUDENT_EXEMPTIONS = `
+  SELECT e.reason_code, e.exempted_at,
+         lm.code, lm.name, lm.lesson_type, lm.stage,
+         COALESCE(r.display_name, '免除') AS reason_name
+  FROM t_student_exemption e
+  JOIN lesson_master lm ON lm.id = e.lesson_master_id
+  LEFT JOIN m_exemption_reason r ON r.reason_code = e.reason_code
+  WHERE e.student_id = ?
+  ORDER BY lm.sort_order
+`;
+
+// ────────────────────────────────────────────────────────────
 // Accommodations
 // ────────────────────────────────────────────────────────────
 export const SQL_ACCOMMODATIONS_WITH_STATS = `

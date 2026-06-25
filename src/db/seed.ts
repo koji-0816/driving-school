@@ -267,6 +267,14 @@ export function seedMasters(): void {
 export function seedCourses(): void {
   const db = getDb();
   try {
+    // 免除理由マスタ（reason_code→表示名。冪等）
+    const rcount = (db.prepare('SELECT COUNT(*) as c FROM m_exemption_reason').get() as { c: number }).c;
+    if (rcount === 0) {
+      const insR = db.prepare(`INSERT INTO m_exemption_reason (reason_code, display_name, sort_order) VALUES (?,?,?)`);
+      insR.run('HELD_NIRIN_FUTSU', '普通二輪免許の所持による免除', 10);
+      insR.run('HELD_NIRIN_OGATA', '大型二輪免許の所持による免除', 20);
+    }
+
     const count = (db.prepare('SELECT COUNT(*) as c FROM m_course').get() as { c: number }).c;
     if (count > 0) return;
 

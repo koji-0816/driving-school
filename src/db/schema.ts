@@ -380,8 +380,16 @@ export function initDb(): void {
         FOREIGN KEY (lesson_master_id) REFERENCES lesson_master(id)
       );
 
+      -- 免除理由マスタ（reason_code→表示名。判定は不変コード、表示だけ日本語に変換）
+      CREATE TABLE IF NOT EXISTS m_exemption_reason (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        reason_code  TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        sort_order   INTEGER NOT NULL DEFAULT 0
+      );
+
       -- 生徒の免除事実（受講実績とは別ソース。評価時に completedCodes へ合流）
-      --   reason_code は不変コード（日本語禁止）。将来 m_exemption_reason でマスタ化
+      --   reason_code は不変コード（日本語禁止）。表示名は m_exemption_reason で変換
       CREATE TABLE IF NOT EXISTS t_student_exemption (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id       INTEGER NOT NULL,

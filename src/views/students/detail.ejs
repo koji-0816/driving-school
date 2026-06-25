@@ -151,6 +151,51 @@
 </div>
 
 
+<%# 教習コース・計画・免除（閲覧。Step3 plan方式の価値体験） %>
+<div class="card mb-4">
+  <div class="card-header">教習コース・計画</div>
+  <div class="card-body">
+    <% if(isPlanBased) { %>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <span class="badge badge-blue">コース確定</span>
+        <strong style="font-size:15px"><%= planCourse.name %></strong>
+        <span class="text-muted" style="font-size:12px"><%= planCourse.family %></span>
+      </div>
+      <div class="text-muted" style="font-size:12px">
+        入校時に展開された教習計画（必要教習 <%= plan.length %> 項目）。展開元コース版ID: <%= planCourse.source_course_id %>
+      </div>
+
+      <% if(exemptions && exemptions.length > 0) { %>
+      <div style="margin-top:16px;padding:14px 16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px">
+        <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:8px">
+          免除済み科目（<%= exemptions.length %> 件）
+        </div>
+        <div style="font-size:12px;color:#0369a1;margin-bottom:10px">
+          理由：<%= exemptions[0].reason_name %>
+          <span class="text-muted">— これらは受講せず、前提条件は満たした扱いになります</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <% for(const ex of exemptions) { %>
+            <span class="badge badge-gray" title="<%= ex.reason_name %>"><%= ex.code %> <%= ex.name %></span>
+          <% } %>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px">
+          ⚠ 免除内容は暫定です（要法令・現場確認）。実際の免除科目・範囲は現地運用に合わせて確定します。
+        </div>
+      </div>
+      <% } %>
+    <% } else { %>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="badge badge-gray">従来方式</span>
+        <span class="text-muted" style="font-size:13px">
+          取得希望免許（AT/MT）未設定のため、従来方式（全科目）で表示中です。
+          編集画面で取得希望免許を設定すると、入校時にコース別の教習計画が展開されます。
+        </span>
+      </div>
+    <% } %>
+  </div>
+</div>
+
 <% if(progress && progress.length > 0) { %>
 <%
   // 表示用に段階×種別でグループ化
