@@ -131,6 +131,14 @@ const SQL_ACTIVE_ASSIGNMENTS_ON = `
     AND a.id NOT IN (SELECT cancels FROM t_room_assignment WHERE cancels IS NOT NULL)
 `;
 
+/** 部屋・指定日の有効割当 件数（シングル＝占有 の登録可否判定に使う） */
+export const SQL_ROOM_ACTIVE_COUNT_ON = `
+  SELECT COUNT(*) AS c FROM t_room_assignment a
+  WHERE a.room_id = ? AND a.valid_from <= ? AND a.valid_to >= ?
+    AND a.cancels IS NULL
+    AND a.id NOT IN (SELECT cancels FROM t_room_assignment WHERE cancels IS NOT NULL)
+`;
+
 /** 部屋・指定日の空き人数を導出（番長ロジック：占有→0／消費数合計／超過で上限拡張） */
 export function roomVacancyOn(
   db: ReturnType<typeof getDb>,

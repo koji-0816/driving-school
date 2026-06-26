@@ -4,7 +4,7 @@ import {
   SQL_ACCOMMODATIONS_WITH_STATS, SQL_ACCOMMODATION_OCCUPANCY, SQL_RESIDENTS,
   SQL_ACCOMMODATION_INSERT, SQL_ACCOMMODATION_UPDATE,
   SQL_ROOMS_BY_ACCOMMODATION, SQL_ROOM_INSERT, SQL_ROOM_UPDATE,
-  SQL_ASSIGNMENTS_IN_RANGE, roomVacancyOn,
+  SQL_ASSIGNMENTS_IN_RANGE, roomVacancyOn, SQL_ROOM_ACTIVE_COUNT_ON,
   SQL_ROOM_ASSIGNMENT_INSERT, SQL_ROOM_ASSIGNMENT_CANCEL, SQL_STUDENT_ACTIVE_ASSIGNMENTS,
   logEdit,
 } from '../db/queries';
@@ -145,16 +145,24 @@ router.post('/assign', (req: Request, res: Response) => {
       .get(usage_code) as { consume_count: number; is_exclusive: number; allow_over: number } | undefined;
     if (!usage) return renderAssign(db, res, student_id, '利用形態が不正です');
 
-    // 期間内の各日で空きを導出チェック（状態を持たず roomVacancyOn で判定）
+    // 期間内の各日で空きを導出チェック（状態を持たず導出）
     const start = new Date(valid_from), end = new Date(valid_to);
+    const countOn = db.prepare(SQL_ROOM_ACTIVE_COUNT_ON);
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const ds = d.toISOString().split('T')[0];
-      const vac = roomVacancyOn(db, Number(room_id), ds);
-      // 占有(シングル)は他割当があれば vac=0 になる側だが、自分が入る場合も既存があれば不可
-      const need = usage.is_exclusive ? 1 : usage.consume_count;
-      if (vac < need) {
-        return renderAssign(db, res, student_id,
-          `${ds} はこの部屋に空きがありません（必要 ${need} / 空き ${vac}）。超過利用や別の部屋・期間をご検討ください`);
+      if (usage.is_exclusive) {
+        // シングル＝部屋占有。その日に既存の有効割当が1つでもあれば登録不可（同居を防ぐ）
+        const cnt = (countOn.get(Number(room_id), ds, ds) as { c: number }).c;
+        if (cnt > 0) {
+          return renderAssign(db, res, student_id,
+            `${ds} はこの部屋に既に割当があります。シングル（占有）で登録するには空室である必要があります`);
+        }
+      } else {
+        const vac = roomVacancyOn(db, Number(room_id), ds);
+        if (vac < usage.consume_count) {
+          return renderAssign(db, res, student_id,
+            `${ds} はこの部屋に空きがありません（必要 ${usage.consume_count} / 空き ${vac}）。超過利用や別の部屋・期間をご検討ください`);
+        }
       }
     }
 
