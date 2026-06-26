@@ -71,13 +71,29 @@ router.get('/occupancy', (req: Request, res: Response) => {
       }
     }
 
+    // 部屋ごとの「今日の状態」要約（新データを持たず導出結果を表示に回すだけ）
+    const todayAssign = db.prepare(SQL_ASSIGNMENTS_IN_RANGE).all(today, today) as Record<string, any>[];
+    const todayByRoom: Record<number, Record<string, any>[]> = {};
+    for (const a of todayAssign) (todayByRoom[a.room_id] ||= []).push(a);
+    const roomStatus: Record<number, { vacancy: number; label: string; kind: string }> = {};
+    for (const r of rooms) {
+      const v = roomVacancyOn(db, r.id, today);
+      const occ = todayByRoom[r.id] || [];
+      let label: string, kind: string;
+      if (occ.some(a => a.is_exclusive)) { label = 'シングル利用中'; kind = 'single'; }
+      else if (occ.some(a => a.usage_code === 'OVER')) { label = `超過利用中（空き${v}）`; kind = 'over'; }
+      else if (v <= 0) { label = '満室'; kind = 'full'; }
+      else { label = `空き ${v}`; kind = 'free'; }
+      roomStatus[r.id] = { vacancy: v, label, kind };
+    }
+
     const usageTypes = db.prepare('SELECT usage_code, display_name, color_code FROM m_room_usage_type ORDER BY sort_order').all();
 
     const prevD = new Date(from); prevD.setDate(prevD.getDate() - days);
     const nextD = new Date(from); nextD.setDate(nextD.getDate() + days);
 
     res.render('accommodation/occupancy', {
-      rooms, dates, byRoom, vacancy, usageTypes, from, days, today,
+      rooms, dates, byRoom, vacancy, usageTypes, roomStatus, from, days, today,
       prevFrom: prevD.toISOString().split('T')[0],
       nextFrom: nextD.toISOString().split('T')[0],
     });
