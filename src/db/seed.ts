@@ -316,6 +316,25 @@ export function seedRoomAssignments(): void {
   }
 }
 
+// ※暫定デモ：Excel在室表の景色を公開デモで見せるための8月サンプル割当。冪等。
+export function seedOccupancyDemo(): void {
+  const db = getDb();
+  try {
+    const has = (db.prepare("SELECT COUNT(*) as c FROM t_room_assignment WHERE valid_from = '2026-08-03'").get() as { c: number }).c;
+    if (has > 0) return;
+    const s = db.prepare("SELECT id FROM students WHERE status = '在校' ORDER BY id LIMIT 3").all() as { id: number }[];
+    const rooms = db.prepare('SELECT id FROM rooms ORDER BY id LIMIT 4').all() as { id: number }[];
+    if (s.length < 3 || rooms.length < 3) return;
+    const ins = db.prepare('INSERT INTO t_room_assignment (student_id,room_id,usage_code,valid_from,valid_to) VALUES (?,?,?,?,?)');
+    ins.run(s[0].id, rooms[0].id, 'SHARE',  '2026-08-03', '2026-08-20'); // 相部屋（ベージュ帯）
+    ins.run(s[1].id, rooms[1].id, 'SINGLE', '2026-08-06', '2026-08-27'); // シングル（赤帯）
+    ins.run(s[2].id, rooms[2].id, 'SHARE',  '2026-08-01', '2026-08-13'); // 相部屋
+    console.log('宿泊 8月デモ割当 投入（※暫定デモ）');
+  } finally {
+    db.close();
+  }
+}
+
 export function seedCourses(): void {
   const db = getDb();
   try {

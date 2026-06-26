@@ -150,6 +150,30 @@ export function roomVacancyOn(
   return Math.max(0, limit - used);
 }
 
+/** 割当登録（INSERT中心） */
+export const SQL_ROOM_ASSIGNMENT_INSERT = `
+  INSERT INTO t_room_assignment (student_id, room_id, usage_code, valid_from, valid_to)
+  VALUES (?,?,?,?,?)
+`;
+/** 取消＝旧割当を指す取消マーカー行をINSERT（UPDATE/DELETEしない・赤伝。属性は旧行と同じ） */
+export const SQL_ROOM_ASSIGNMENT_CANCEL = `
+  INSERT INTO t_room_assignment (student_id, room_id, usage_code, valid_from, valid_to, cancels)
+  VALUES (?,?,?,?,?,?)
+`;
+/** 指定生徒の有効割当（取り消されていない）＋部屋名・形態名 */
+export const SQL_STUDENT_ACTIVE_ASSIGNMENTS = `
+  SELECT a.id, a.room_id, a.usage_code, a.valid_from, a.valid_to,
+         r.room_name, ac.name AS accommodation_name,
+         u.display_name AS usage_name, u.color_code
+  FROM t_room_assignment a
+  JOIN rooms r ON r.id = a.room_id
+  JOIN accommodations ac ON ac.id = r.accommodation_id
+  JOIN m_room_usage_type u ON u.usage_code = a.usage_code
+  WHERE a.student_id = ? AND a.cancels IS NULL
+    AND a.id NOT IN (SELECT cancels FROM t_room_assignment WHERE cancels IS NOT NULL AND student_id = ?)
+  ORDER BY a.valid_from
+`;
+
 /** 期間×全部屋の有効割当を返す（刻2 グリッド描画用の最小データ。表示結果は持たない） */
 export const SQL_ASSIGNMENTS_IN_RANGE = `
   SELECT a.id, a.student_id, a.room_id, a.usage_code, a.valid_from, a.valid_to,

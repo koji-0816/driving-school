@@ -5,6 +5,7 @@ import {
   SQL_ACCOMMODATION_INSERT, SQL_ACCOMMODATION_UPDATE,
   SQL_ROOMS_BY_ACCOMMODATION, SQL_ROOM_INSERT, SQL_ROOM_UPDATE,
   SQL_ASSIGNMENTS_IN_RANGE, roomVacancyOn,
+  SQL_ROOM_ASSIGNMENT_INSERT, SQL_ROOM_ASSIGNMENT_CANCEL, SQL_STUDENT_ACTIVE_ASSIGNMENTS,
   logEdit,
 } from '../db/queries';
 
@@ -44,17 +45,21 @@ router.get('/occupancy', (req: Request, res: Response) => {
     // 期間内の有効割当（valid_from<=末 AND valid_to>=始）
     const assignments = db.prepare(SQL_ASSIGNMENTS_IN_RANGE).all(rangeEnd, from) as Record<string, any>[];
 
-    // grid[room_id][date] = { color, name, isStart, isExclusive } / 無ければ空き数
+    // grid[room_id][date]：割当の帯。氏名は表示範囲内の中央セルにのみ出す（Excel風）
     const byRoom: Record<number, Record<string, any>> = {};
     for (const a of assignments) {
-      for (const dt of dates) {
-        if (a.valid_from <= dt && a.valid_to >= dt) {
-          (byRoom[a.room_id] ||= {})[dt] = {
-            color: a.color_code, name: a.student_name, usage: a.usage_name,
-            isStart: dt === a.valid_from || dt === from, isExclusive: a.is_exclusive,
-          };
-        }
-      }
+      const span = dates.filter(dt => a.valid_from <= dt && a.valid_to >= dt);
+      if (span.length === 0) continue;
+      const midIdx = Math.floor((span.length - 1) / 2);
+      span.forEach((dt, i) => {
+        (byRoom[a.room_id] ||= {})[dt] = {
+          color: a.color_code, name: a.student_name, usage: a.usage_name,
+          isExclusive: a.is_exclusive,
+          showName: i === midIdx,
+          isStart: dt === span[0],
+          isEnd: dt === span[span.length - 1],
+        };
+      });
     }
 
     // 空き数（割当が無いセル用）。状態を持たず導出
@@ -76,6 +81,84 @@ router.get('/occupancy', (req: Request, res: Response) => {
       prevFrom: prevD.toISOString().split('T')[0],
       nextFrom: nextD.toISOString().split('T')[0],
     });
+  } finally {
+    db.close();
+  }
+});
+
+// 部屋割当 登録フォーム（/:id より先に定義）
+function renderAssign(db: ReturnType<typeof getDb>, res: Response, studentId: string, error: string | null) {
+  const students = db.prepare(`
+    SELECT id, name, student_no, enrollment_date, expected_graduation
+    FROM students WHERE status = '在校' ORDER BY name
+  `).all();
+  const rooms = db.prepare(`
+    SELECT r.id, r.room_name, r.capacity, r.over_capacity, a.name AS accommodation_name
+    FROM rooms r JOIN accommodations a ON a.id = r.accommodation_id
+    WHERE r.status = '使用可' ORDER BY a.id, r.room_name
+  `).all();
+  const usageTypes = db.prepare('SELECT usage_code, display_name FROM m_room_usage_type ORDER BY sort_order').all();
+  const heldAssignments = studentId
+    ? db.prepare(SQL_STUDENT_ACTIVE_ASSIGNMENTS).all(studentId, studentId)
+    : [];
+  res.render('accommodation/assign', { students, rooms, usageTypes, studentId, heldAssignments, error });
+}
+
+router.get('/assign', (req: Request, res: Response) => {
+  const db = getDb();
+  try {
+    renderAssign(db, res, (req.query.student_id as string) || '', null);
+  } finally {
+    db.close();
+  }
+});
+
+// 部屋割当 登録（INSERT中心。空きは roomVacancyOn で導出して満室を弾く）
+router.post('/assign', (req: Request, res: Response) => {
+  const { student_id, room_id, usage_code, valid_from, valid_to } = req.body;
+  const db = getDb();
+  try {
+    if (!student_id || !room_id || !usage_code || !valid_from || !valid_to) {
+      return renderAssign(db, res, student_id || '', '生徒・部屋・利用形態・期間は必須です');
+    }
+    if (valid_to < valid_from) {
+      return renderAssign(db, res, student_id, '終了日は開始日以降にしてください');
+    }
+
+    const usage = db.prepare('SELECT consume_count, is_exclusive, allow_over FROM m_room_usage_type WHERE usage_code = ?')
+      .get(usage_code) as { consume_count: number; is_exclusive: number; allow_over: number } | undefined;
+    if (!usage) return renderAssign(db, res, student_id, '利用形態が不正です');
+
+    // 期間内の各日で空きを導出チェック（状態を持たず roomVacancyOn で判定）
+    const start = new Date(valid_from), end = new Date(valid_to);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const ds = d.toISOString().split('T')[0];
+      const vac = roomVacancyOn(db, Number(room_id), ds);
+      // 占有(シングル)は他割当があれば vac=0 になる側だが、自分が入る場合も既存があれば不可
+      const need = usage.is_exclusive ? 1 : usage.consume_count;
+      if (vac < need) {
+        return renderAssign(db, res, student_id,
+          `${ds} はこの部屋に空きがありません（必要 ${need} / 空き ${vac}）。超過利用や別の部屋・期間をご検討ください`);
+      }
+    }
+
+    db.prepare(SQL_ROOM_ASSIGNMENT_INSERT).run(student_id, room_id, usage_code, valid_from, valid_to);
+    res.redirect(`/accommodation/occupancy?from=${valid_from}`);
+  } finally {
+    db.close();
+  }
+});
+
+// 部屋割当 取消（赤伝・UPDATE/DELETEしない）
+router.post('/assign/:id/cancel', (req: Request, res: Response) => {
+  const db = getDb();
+  try {
+    const a = db.prepare('SELECT * FROM t_room_assignment WHERE id = ?').get(req.params.id) as
+      { id: number; student_id: number; room_id: number; usage_code: string; valid_from: string; valid_to: string } | undefined;
+    if (a) {
+      db.prepare(SQL_ROOM_ASSIGNMENT_CANCEL).run(a.student_id, a.room_id, a.usage_code, a.valid_from, a.valid_to, a.id);
+    }
+    res.redirect(`/accommodation/assign?student_id=${a ? a.student_id : ''}`);
   } finally {
     db.close();
   }

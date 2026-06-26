@@ -1,0 +1,114 @@
+<%- include('../partials/layout-start', { title: '部屋の割り当て', current: 'accommodation' }) %>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+  <a href="/accommodation" class="text-muted" style="font-size:13px">← 宿泊管理</a>
+  <a href="/accommodation/occupancy" class="text-muted" style="font-size:13px">📅 日別在室状況</a>
+</div>
+
+<div style="background:#fffbeb;border:1px solid #fde68a;color:#854d0e;padding:10px 16px;border-radius:8px;margin:16px 0;font-size:13px">
+  ※ 利用形態・滞在期間の運用は<strong>暫定</strong>です（要現地確認）。実際に割り当てて、運用に合うか確かめてください。
+</div>
+
+<% if(error) { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin-bottom:16px">⚠️ <%= error %></div>
+<% } %>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">部屋を割り当てる</div>
+    <div class="card-body">
+      <form method="post" action="/accommodation/assign">
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">教習生 <span style="color:#dc2626">*</span></label>
+          <select name="student_id" id="sel-student" required onchange="onStudentChange()"
+                  style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <option value="">— 選択 —</option>
+            <% for(const s of students) { %>
+              <option value="<%= s.id %>"
+                data-from="<%= s.enrollment_date || '' %>" data-to="<%= s.expected_graduation || '' %>"
+                <%= String(studentId) === String(s.id) ? 'selected' : '' %>>
+                <%= s.name %><%= s.student_no ? '（' + s.student_no + '）' : '' %>
+              </option>
+            <% } %>
+          </select>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">部屋 <span style="color:#dc2626">*</span></label>
+          <select name="room_id" required style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <option value="">— 選択 —</option>
+            <% let lastA=''; for(const r of rooms) { %>
+              <% if(r.accommodation_name !== lastA) { lastA = r.accommodation_name; %>
+                <optgroup label="── <%= r.accommodation_name %>"></optgroup>
+              <% } %>
+              <option value="<%= r.id %>"><%= r.room_name %>（定員<%= r.capacity %><% if(r.over_capacity) { %>+超過<%= r.over_capacity %><% } %>）</option>
+            <% } %>
+          </select>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">利用形態 <span style="color:#dc2626">*</span></label>
+          <select name="usage_code" required style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <% for(const u of usageTypes) { %>
+              <option value="<%= u.usage_code %>" <%= u.usage_code==='SHARE'?'selected':'' %>><%= u.display_name %></option>
+            <% } %>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">滞在開始 <span style="color:#dc2626">*</span></label>
+            <input type="date" name="valid_from" id="inp-from" required
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">滞在終了 <span style="color:#dc2626">*</span></label>
+            <input type="date" name="valid_to" id="inp-to" required
+                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">割り当てる</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">この生徒の現在の割当</div>
+    <div class="card-body">
+      <% if(!studentId) { %>
+        <p class="text-muted" style="font-size:13px">生徒を選ぶと、その生徒の有効な割当が表示されます。</p>
+      <% } else if(heldAssignments.length === 0) { %>
+        <p class="text-muted" style="font-size:13px">有効な割当はありません。</p>
+      <% } else { %>
+        <% for(const h of heldAssignments) { %>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f5">
+          <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:<%= h.color_code %>;border:1px solid #ccc"></span>
+          <div style="flex:1;font-size:13px">
+            <strong><%= h.accommodation_name %> <%= h.room_name %></strong>
+            <span class="badge badge-gray" style="margin-left:4px"><%= h.usage_name %></span>
+            <div class="text-muted" style="font-size:11px"><%= h.valid_from %> 〜 <%= h.valid_to %></div>
+          </div>
+          <form method="post" action="/accommodation/assign/<%= h.id %>/cancel" onsubmit="return confirm('この割当を取り消します（記録は残ります）。よろしいですか？')">
+            <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px">取消</button>
+          </form>
+        </div>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+function fillDates() {
+  const sel = document.getElementById('sel-student');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt && opt.dataset.from && !document.getElementById('inp-from').value) document.getElementById('inp-from').value = opt.dataset.from;
+  if (opt && opt.dataset.to && !document.getElementById('inp-to').value) document.getElementById('inp-to').value = opt.dataset.to;
+}
+function onStudentChange() {
+  const sel = document.getElementById('sel-student');
+  // 割当一覧を出すため、生徒選択でリロード（GETに student_id を載せる）
+  if (sel.value) location.href = '/accommodation/assign?student_id=' + sel.value;
+}
+// 生徒がプリセット済みなら期間を自動補完
+document.addEventListener('DOMContentLoaded', fillDates);
+</script>
+
+<%- include('../partials/layout-end') %>

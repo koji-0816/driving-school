@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import session from 'express-session';
 import { initDb } from './db/schema';
-import { seedDb, seedCurriculum, seedFeeAndQuiz, seedSlots, seedMasters, seedCourses, seedSampleStudent, seedRoomAssignments } from './db/seed';
+import { seedDb, seedCurriculum, seedFeeAndQuiz, seedSlots, seedMasters, seedCourses, seedSampleStudent, seedRoomAssignments, seedOccupancyDemo } from './db/seed';
 import dashboardRouter from './routes/dashboard';
 import studentsRouter from './routes/students';
 import instructorsRouter from './routes/instructors';
@@ -59,6 +59,7 @@ seedMasters();
 seedCourses();
 seedSampleStudent();
 seedRoomAssignments();
+seedOccupancyDemo();
 seedSlots();
 generateDeadlineNotifications();
 
