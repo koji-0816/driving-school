@@ -312,6 +312,32 @@ export function initDb(): void {
         FOREIGN KEY (instructor_id)    REFERENCES instructors(id)
       );
 
+      -- 宿泊の利用形態マスタ（判定は usage_code。色・消費数・占有・超過は全てここの値＝現地回答で1行修正で吸収）
+      CREATE TABLE IF NOT EXISTS m_room_usage_type (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        usage_code    TEXT NOT NULL UNIQUE,       -- SHARE/SINGLE/TWIN/OVER（不変・判定キー）
+        display_name  TEXT NOT NULL,
+        consume_count INTEGER NOT NULL,           -- 消費する床数
+        is_exclusive  INTEGER NOT NULL DEFAULT 0, -- 1=部屋占有（他割当を入れない）
+        allow_over    INTEGER NOT NULL DEFAULT 0, -- 1=超過枠まで上限拡張
+        color_code    TEXT,                       -- 表示色（暫定・要現地確認）
+        sort_order    INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- 部屋割当（期間付きイベント。INSERT中心。在室状況・空き人数は保存せず日別に導出する）
+      CREATE TABLE IF NOT EXISTS t_room_assignment (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id  INTEGER NOT NULL,
+        room_id     INTEGER NOT NULL,
+        usage_code  TEXT NOT NULL,                -- m_room_usage_type
+        valid_from  TEXT NOT NULL,
+        valid_to    TEXT NOT NULL,                -- 区間予約ゆえ valid_to を持つ（番長承認の例外）
+        cancels     INTEGER,                      -- 取消/訂正のとき旧割当id（赤伝・自己参照）
+        created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        FOREIGN KEY (room_id)    REFERENCES rooms(id)
+      );
+
       -- 免許種別マスター（取得・所持の共通語彙。判定は license_code で行う）
       CREATE TABLE IF NOT EXISTS m_license_type (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,

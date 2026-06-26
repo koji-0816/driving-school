@@ -247,6 +247,19 @@ export function seedMasters(): void {
       console.log('免許種別マスター投入完了');
     }
 
+    // 宿泊の利用形態マスタ（※暫定・要現地確認：色・ツイン消費数などは現地回答で1行修正で吸収）
+    const usageCount = (db.prepare('SELECT COUNT(*) as c FROM m_room_usage_type').get() as { c: number }).c;
+    if (usageCount === 0) {
+      const insU = db.prepare(
+        `INSERT INTO m_room_usage_type (usage_code, display_name, consume_count, is_exclusive, allow_over, color_code, sort_order) VALUES (?,?,?,?,?,?,?)`
+      );
+      insU.run('SHARE',  '相部屋',     1, 0, 0, '#fdf0d5', 10);  // ベージュ
+      insU.run('SINGLE', 'シングル',   1, 1, 0, '#ef4444', 20);  // 赤・占有
+      insU.run('TWIN',   'ツイン',     2, 0, 0, '#3b82f6', 30);  // 青・2消費
+      insU.run('OVER',   '超過利用',   1, 0, 1, '#f59e0b', 40);  // 橙・上限拡張
+      console.log('宿泊 利用形態マスタ投入完了（※暫定・要現地確認）');
+    }
+
     // 予約経路マスター
     const routeCount = (db.prepare('SELECT COUNT(*) as c FROM m_booking_route').get() as { c: number }).c;
     if (routeCount === 0) {
@@ -265,6 +278,44 @@ export function seedMasters(): void {
 
 // ※暫定seed：免除内容は要法令・現場確認。正本ではない。
 //   二輪所持コースの「学科免除」は構造確認用。学科全免除/応急救護/技能時限は未確定。
+// 滞在期間の初期値：卒業予定日が無い場合の既定滞在日数。※暫定・要現地確認（ここ1箇所が変数）
+const DEFAULT_STAY_DAYS = 60;
+
+// 既存 students.room_id（期間なし）を t_room_assignment（期間付き・SHARE）へ移行展開。冪等。
+// 在室の正本は t_room_assignment。room_id は当面残置。
+export function seedRoomAssignments(): void {
+  const db = getDb();
+  try {
+    const students = db.prepare(`
+      SELECT id, room_id, enrollment_date, expected_graduation
+      FROM students WHERE status = '在校' AND room_id IS NOT NULL
+    `).all() as { id: number; room_id: number; enrollment_date: string; expected_graduation: string | null }[];
+
+    const ins = db.prepare(`
+      INSERT INTO t_room_assignment (student_id, room_id, usage_code, valid_from, valid_to)
+      VALUES (?,?, 'SHARE', ?, ?)
+    `);
+    const exists = db.prepare('SELECT 1 FROM t_room_assignment WHERE student_id = ? LIMIT 1');
+
+    const addDays = (d: string, n: number): string => {
+      const dt = new Date(d); dt.setDate(dt.getDate() + n);
+      return dt.toISOString().split('T')[0];
+    };
+
+    let n = 0;
+    for (const s of students) {
+      if (exists.get(s.id)) continue;  // 既に割当があればスキップ（冪等）
+      const from = s.enrollment_date;
+      const to = s.expected_graduation || addDays(s.enrollment_date, DEFAULT_STAY_DAYS);
+      ins.run(s.id, s.room_id, from, to);
+      n++;
+    }
+    if (n > 0) console.log(`部屋割当 移行展開完了（${n}件）`);
+  } finally {
+    db.close();
+  }
+}
+
 export function seedCourses(): void {
   const db = getDb();
   try {

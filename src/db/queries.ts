@@ -116,6 +116,54 @@ export const SQL_ROOM_UPDATE = `
 `;
 
 // ────────────────────────────────────────────────────────────
+// 宿泊：空き人数の導出（状態を持たず、割当イベント＋部屋定員から日別に計算）
+//   利用形態の消費数・占有・超過は m_room_usage_type の値で決まる（コードに形態名を書かない）
+// ────────────────────────────────────────────────────────────
+
+/** 指定日に有効な割当（取消されていない）＋利用形態属性を返す */
+const SQL_ACTIVE_ASSIGNMENTS_ON = `
+  SELECT a.id, a.student_id, a.room_id, a.usage_code,
+         u.consume_count, u.is_exclusive, u.allow_over
+  FROM t_room_assignment a
+  JOIN m_room_usage_type u ON u.usage_code = a.usage_code
+  WHERE a.room_id = ? AND a.valid_from <= ? AND a.valid_to >= ?
+    AND a.cancels IS NULL
+    AND a.id NOT IN (SELECT cancels FROM t_room_assignment WHERE cancels IS NOT NULL)
+`;
+
+/** 部屋・指定日の空き人数を導出（番長ロジック：占有→0／消費数合計／超過で上限拡張） */
+export function roomVacancyOn(
+  db: ReturnType<typeof getDb>,
+  roomId: number,
+  dateStr: string
+): number {
+  const room = db.prepare('SELECT capacity, over_capacity FROM rooms WHERE id = ?').get(roomId) as
+    { capacity: number; over_capacity: number | null } | undefined;
+  if (!room) return 0;
+
+  const active = db.prepare(SQL_ACTIVE_ASSIGNMENTS_ON).all(roomId, dateStr, dateStr) as
+    { consume_count: number; is_exclusive: number; allow_over: number }[];
+
+  if (active.some(a => a.is_exclusive === 1)) return 0;  // 占有（シングル等）→空き0
+  const used = active.reduce((s, a) => s + a.consume_count, 0);
+  const limit = (room.capacity || 0) + (active.some(a => a.allow_over === 1) ? (room.over_capacity || 0) : 0);
+  return Math.max(0, limit - used);
+}
+
+/** 期間×全部屋の有効割当を返す（刻2 グリッド描画用の最小データ。表示結果は持たない） */
+export const SQL_ASSIGNMENTS_IN_RANGE = `
+  SELECT a.id, a.student_id, a.room_id, a.usage_code, a.valid_from, a.valid_to,
+         s.name AS student_name, u.display_name AS usage_name, u.color_code, u.is_exclusive
+  FROM t_room_assignment a
+  JOIN students s ON s.id = a.student_id
+  JOIN m_room_usage_type u ON u.usage_code = a.usage_code
+  WHERE a.cancels IS NULL
+    AND a.id NOT IN (SELECT cancels FROM t_room_assignment WHERE cancels IS NOT NULL)
+    AND a.valid_from <= ? AND a.valid_to >= ?
+  ORDER BY a.room_id, a.valid_from
+`;
+
+// ────────────────────────────────────────────────────────────
 // 教習コース閲覧・生徒のplan/免除（閲覧UI用）
 // ────────────────────────────────────────────────────────────
 
