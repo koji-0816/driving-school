@@ -35,17 +35,34 @@ export const SQL_STUDENT_UPDATE = `
 
 // ── 免許種別・所持免許・予約経路・教官 ───────────────────────────
 export const SQL_LICENSE_TYPES_ALL = `SELECT * FROM m_license_type ORDER BY sort_order`;
+// 免許マスター：追加時のみ license_code（不変・判定キー）を入力。編集では code を変えない
+export const SQL_LICENSE_TYPE_INSERT = `
+  INSERT INTO m_license_type (license_code, license_name, category, sort_order) VALUES (?,?,?,?)
+`;
+export const SQL_LICENSE_TYPE_UPDATE = `
+  UPDATE m_license_type SET license_name=?, category=?, sort_order=? WHERE id=?
+`;
 
+// 有効な所持免許＝取消マーカー(cancels NOT NULL)でなく、かつ取り消されていない行（赤伝）
 export const SQL_HELD_LICENSE_BY_STUDENT = `
   SELECT h.*, m.license_code, m.license_name, m.category
   FROM t_student_held_license h
   JOIN m_license_type m ON h.license_type_id = m.id
-  WHERE h.student_id = ?
+  WHERE h.student_id = ? AND h.cancels IS NULL
+    AND h.id NOT IN (
+      SELECT cancels FROM t_student_held_license
+      WHERE cancels IS NOT NULL AND student_id = h.student_id
+    )
   ORDER BY h.recorded_at DESC
 `;
 export const SQL_HELD_LICENSE_INSERT = `
   INSERT INTO t_student_held_license (student_id, license_type_id, acquired_date, expiry_date)
   VALUES (?,?,?,?)
+`;
+// 取消＝旧行を指す取消マーカー行をINSERT（UPDATE/DELETEしない・赤伝）。license_type_idは旧行と同じ
+export const SQL_HELD_LICENSE_CANCEL = `
+  INSERT INTO t_student_held_license (student_id, license_type_id, cancels)
+  VALUES (?,?,?)
 `;
 
 export const SQL_BOOKING_ROUTES_ALL    = `SELECT * FROM m_booking_route ORDER BY sort_order`;
@@ -89,12 +106,12 @@ export const SQL_ROOMS_BY_ACCOMMODATION = `
 `;
 
 export const SQL_ROOM_INSERT = `
-  INSERT INTO rooms (accommodation_id,room_name,capacity,status,note,updated_at)
-  VALUES (?,?,?,?,?,datetime('now','localtime'))
+  INSERT INTO rooms (accommodation_id,room_name,capacity,over_capacity,status,note,updated_at)
+  VALUES (?,?,?,?,?,?,datetime('now','localtime'))
 `;
 
 export const SQL_ROOM_UPDATE = `
-  UPDATE rooms SET room_name=?,capacity=?,status=?,note=?,updated_at=datetime('now','localtime')
+  UPDATE rooms SET room_name=?,capacity=?,over_capacity=?,status=?,note=?,updated_at=datetime('now','localtime')
   WHERE id=?
 `;
 

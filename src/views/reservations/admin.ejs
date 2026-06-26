@@ -9,93 +9,127 @@
 <div class="card mb-4">
   <div class="card-header">枠を追加する</div>
   <div class="card-body">
-    <form method="post" action="/reservations/admin/slots" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">日付</div>
-        <input type="date" name="slot_date" value="<%= date %>" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">開始</div>
-        <select name="start_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <% ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].forEach(t => { %>
-            <option value="<%= t %>"><%= t %></option>
-          <% }) %>
-        </select>
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">終了</div>
-        <select name="end_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <% ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].forEach(t => { %>
-            <option value="<%= t %>"><%= t %></option>
-          <% }) %>
-        </select>
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">教官</div>
-        <select name="instructor_id" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <% for(const i of instructors) { %>
-            <option value="<%= i.id %>"><%= i.name %></option>
-          <% } %>
-        </select>
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">設備</div>
-        <select name="facility_id" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="">なし</option>
-          <% let lastCat = ''; for(const f of facilities) { %>
-            <% if(f.category !== lastCat) { lastCat = f.category; %>
-              <optgroup label="── <%= f.category %>"></optgroup>
+    <form method="post" action="/reservations/admin/slots">
+      <!-- 上段：枠の条件 -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">日付</div>
+          <input type="date" name="slot_date" value="<%= date %>" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">開始</div>
+          <select name="start_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <% ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].forEach(t => { %>
+              <option value="<%= t %>"><%= t %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">終了</div>
+          <select name="end_time" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <% ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].forEach(t => { %>
+              <option value="<%= t %>"><%= t %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">教官</div>
+          <select name="instructor_id" required style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <% for(const i of instructors) { %>
+              <option value="<%= i.id %>"><%= i.name %></option>
             <% } %>
-            <option value="<%= f.id %>"><%= f.name %><%= f.license_type ? '（' + f.license_type + '）' : '' %></option>
-          <% } %>
-        </select>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">設備</div>
+          <select name="facility_id" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <option value="">なし</option>
+            <% let lastCat = ''; for(const f of facilities) { %>
+              <% if(f.category !== lastCat) { lastCat = f.category; %>
+                <optgroup label="── <%= f.category %>"></optgroup>
+              <% } %>
+              <option value="<%= f.id %>"><%= f.name %><%= f.license_type ? '（' + f.license_type + '）' : '' %></option>
+            <% } %>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">種別</div>
+          <select name="lesson_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <option value="技能">技能</option>
+            <option value="学科">学科</option>
+            <option value="シミュレーター">シミュレーター</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">車種</div>
+          <select name="license_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+            <option value="普通車">普通車</option>
+            <option value="二輪">二輪</option>
+            <option value="大型">大型</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">定員</div>
+          <input type="number" name="max_students" id="inp-capacity" value="1" min="1" max="30" onchange="updateAddBtn()"
+                 style="width:60px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
+        </div>
+        <div>
+          <div class="text-muted" style="margin-bottom:4px">実施する教習</div>
+          <select name="lesson_master_id"
+                  style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:200px">
+            <option value="">指定しない</option>
+            <% for(const l of lessons) { %>
+              <option value="<%= l.id %>"><%= l.code %> <%= l.name %></option>
+            <% } %>
+          </select>
+        </div>
       </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">種別</div>
-        <select name="lesson_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="技能">技能</option>
-          <option value="学科">学科</option>
-          <option value="シミュレーター">シミュレーター</option>
-        </select>
+
+      <!-- 下段：教習生（同じ教習を受ける生徒を追加） -->
+      <div style="border-top:1px solid #f0f2f5;padding-top:12px">
+        <div class="text-muted" style="margin-bottom:8px;font-size:12px">教習生（任意。同じ教習を受ける生徒を「生徒を追加」で増やせます。定員に達すると追加できません）</div>
+        <div id="student-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" id="add-student-btn" class="btn btn-secondary" style="margin-top:8px;font-size:12px" onclick="addStudentRow()">＋ 生徒を追加</button>
       </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">車種</div>
-        <select name="license_type" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-          <option value="普通車">普通車</option>
-          <option value="二輪">二輪</option>
-          <option value="大型">大型</option>
-        </select>
+
+      <div style="margin-top:16px">
+        <button type="submit" class="btn btn-primary">枠を追加</button>
       </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">定員</div>
-        <input type="number" name="max_students" value="1" min="1" max="30"
-               style="width:60px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px">
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">教習生（任意）</div>
-        <select name="student_id" id="sel-student" onchange="loadStudentLessons()"
-                style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:140px">
-          <option value="">指定しない</option>
-          <% for(const st of students) { %>
-            <option value="<%= st.id %>"><%= st.name %><%= st.student_no ? '（' + st.student_no + '）' : '' %></option>
-          <% } %>
-        </select>
-      </div>
-      <div>
-        <div class="text-muted" style="margin-bottom:4px">実施する教習（任意）</div>
-        <select name="lesson_master_id" id="sel-lesson"
-                style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:200px">
-          <option value="">指定しない</option>
-          <% for(const l of lessons) { %>
-            <option value="<%= l.id %>" data-stage="<%= l.stage %>"><%= l.code %> <%= l.name %></option>
-          <% } %>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary">追加</button>
     </form>
     <div class="text-muted" style="margin-top:8px;font-size:12px">
-      ※ 教習生を選ぶと、受講済みの教習は実施教習リストから除外されます（その生徒の課程／前提条件で判定）
+      ※ 受講済みの教習を指定された生徒は登録時に弾かれます（その生徒の課程／前提条件で判定）。車種は生徒の取得車種を自動表示します。
     </div>
+
+    <script>
+      // 生徒id → 取得車種（属性参照。reservationには焼かない）
+      var STUDENT_LICENSE = {
+        <% for(const st of students) { %>'<%= st.id %>': '<%= st.license_type %>',<% } %>
+      };
+      var STUDENT_OPTIONS = `<option value="">— 選択 —</option><% for(const st of students) { %><option value="<%= st.id %>"><%= st.name %><%= st.student_no ? '（' + st.student_no + '）' : '' %></option><% } %>`;
+
+      function carTypeSpanUpdate(sel) {
+        var span = sel.parentElement.querySelector('.car-type');
+        span.textContent = STUDENT_LICENSE[sel.value] ? ('取得車種：' + STUDENT_LICENSE[sel.value]) : '';
+      }
+      function addStudentRow() {
+        var wrap = document.getElementById('student-rows');
+        var cap = Number(document.getElementById('inp-capacity').value) || 1;
+        if (wrap.children.length >= cap) return;
+        var row = document.createElement('div');
+        row.className = 'student-row';
+        row.style = 'display:flex;align-items:center;gap:10px';
+        row.innerHTML = '<select name="student_id" onchange="carTypeSpanUpdate(this)" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;min-width:180px">' + STUDENT_OPTIONS + '</select>'
+          + '<span class="car-type text-muted" style="font-size:12px"></span>'
+          + '<button type="button" class="btn btn-secondary" style="font-size:11px;padding:3px 8px" onclick="this.closest(\'.student-row\').remove();updateAddBtn()">削除</button>';
+        wrap.appendChild(row);
+        updateAddBtn();
+      }
+      function updateAddBtn() {
+        var wrap = document.getElementById('student-rows');
+        var cap = Number(document.getElementById('inp-capacity').value) || 1;
+        document.getElementById('add-student-btn').style.display = (wrap.children.length >= cap) ? 'none' : '';
+      }
+    </script>
   </div>
 </div>
 
@@ -161,28 +195,5 @@
   </div>
 </div>
 
-<script>
-// 教習生を選ぶと受講済みを除いた実施教習リストに差し替える（その生徒の課程／前提条件で判定）
-function loadStudentLessons() {
-  const sid = document.getElementById('sel-student').value;
-  const sel = document.getElementById('sel-lesson');
-  if (!sid) {
-    // 全教習に戻す（ページ内の初期optionを保持していないので簡易にリロード無しで全件再構築はしない）
-    return;
-  }
-  fetch('/reservations/admin/student-lessons/' + sid)
-    .then(r => r.json())
-    .then(d => {
-      sel.innerHTML = '<option value="">指定しない</option>';
-      for (const l of d.lessons) {
-        const o = document.createElement('option');
-        o.value = l.id;
-        o.textContent = l.code + ' ' + l.name + (l.status === 'locked' ? '（前提未達）' : '');
-        if (l.status === 'locked') o.disabled = true;
-        sel.appendChild(o);
-      }
-    });
-}
-</script>
 
 <%- include('../partials/layout-end') %>

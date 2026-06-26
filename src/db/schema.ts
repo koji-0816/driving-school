@@ -426,6 +426,14 @@ export function initDb(): void {
       { name: 'booking_route_id',          type: 'INTEGER' }, // 予約経路 → m_booking_route
       { name: 'target_license_id',         type: 'INTEGER' }, // 取得希望免許 → m_license_type（コース判定起点）
     ]);
+    // 部屋：超過利用時の追加可能人数
+    migrateAddColumns(db, 'rooms', [
+      { name: 'over_capacity', type: 'INTEGER' },  // 超過利用時に定員を超えて許容できる追加人数
+    ]);
+    // 所持免許：誤登録の取消（赤伝・自己参照）。cancels=取消対象の旧行id。UPDATE/DELETEしない
+    migrateAddColumns(db, 't_student_held_license', [
+      { name: 'cancels', type: 'INTEGER' },
+    ]);
   } finally {
     db.close();
   }

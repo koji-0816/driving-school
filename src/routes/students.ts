@@ -6,7 +6,7 @@ import {
   SQL_ROOMS_FOR_STUDENT_FORM,
   SQL_INSTRUCTOR_SCHEDULE,
   SQL_LICENSE_TYPES_ALL, SQL_BOOKING_ROUTES_ACTIVE,
-  SQL_HELD_LICENSE_BY_STUDENT, SQL_HELD_LICENSE_INSERT,
+  SQL_HELD_LICENSE_BY_STUDENT, SQL_HELD_LICENSE_INSERT, SQL_HELD_LICENSE_CANCEL,
   SQL_STUDENT_PLAN, SQL_STUDENT_EXEMPTIONS,
   recordStudentChanges, logStudentEvent, buildCurriculumProgress,
   expandStudentLessonPlan,
@@ -361,6 +361,22 @@ router.post('/:id/edit', (req: Request, res: Response) => {
     db.close();
   }
   res.redirect(`/students/${req.params.id}`);
+});
+
+// 所持免許の取消（誤登録の訂正。UPDATE/DELETEせず取消マーカーをINSERT＝赤伝）
+router.post('/:id/held-license/:hid/cancel', (req: Request, res: Response) => {
+  const db = getDb();
+  try {
+    const held = db.prepare(
+      'SELECT id, student_id, license_type_id FROM t_student_held_license WHERE id = ? AND student_id = ?'
+    ).get(req.params.hid, req.params.id) as { id: number; student_id: number; license_type_id: number } | undefined;
+    if (held) {
+      db.prepare(SQL_HELD_LICENSE_CANCEL).run(held.student_id, held.license_type_id, held.id);
+    }
+  } finally {
+    db.close();
+  }
+  res.redirect(`/students/${req.params.id}/edit`);
 });
 
 export default router;

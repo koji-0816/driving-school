@@ -1,0 +1,70 @@
+<%- include('../partials/layout-start', { title: '免許マスター', current: 'license-types' }) %>
+
+<% if(error) { %>
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 16px;border-radius:8px;margin:12px 0">⚠️ <%= error %></div>
+<% } %>
+
+<div style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:10px 16px;border-radius:8px;margin:16px 0;font-size:13px">
+  取得・所持の免許種別を管理します。判定コード（英字・不変）は判定キーのため<strong>編集できません</strong>。来年の法改正（大型ATの追加）はここに行を追加します。
+</div>
+
+<div class="grid-2 mt-4">
+  <div class="card">
+    <div class="card-header">免許種別一覧</div>
+    <div class="card-body">
+      <table>
+        <tr><th>判定コード</th><th>表示名</th><th>区分</th><th>並び順</th><th></th></tr>
+        <% for(const l of licenseTypes) { %>
+        <tr>
+          <form method="post" action="/license-types/<%= l.id %>/edit" style="display:contents">
+            <td><span class="badge badge-gray"><%= l.license_code %></span></td>
+            <td><input type="text" name="license_name" value="<%= l.license_name %>"
+                       style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:100%"></td>
+            <td>
+              <select name="category" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+                <% ['四輪','二輪','原付','なし'].forEach(c => { %>
+                  <option value="<%= c %>" <%= l.category === c ? 'selected' : '' %>><%= c %></option>
+                <% }) %>
+              </select>
+            </td>
+            <td><input type="number" name="sort_order" value="<%= l.sort_order %>" style="width:60px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"></td>
+            <td><button type="submit" class="btn btn-secondary" style="font-size:12px">保存</button></td>
+          </form>
+        </tr>
+        <% } %>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">免許種別を追加</div>
+    <div class="card-body">
+      <form method="post" action="/license-types">
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">判定コード（英字・不変） <span style="color:#dc2626">*</span></label>
+          <input type="text" name="license_code" placeholder="OGATA_AT" required
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;text-transform:uppercase">
+          <div class="text-muted" style="margin-top:3px">後から変更できません。判定に使う不変コード</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">表示名 <span style="color:#dc2626">*</span></label>
+          <input type="text" name="license_name" placeholder="大型自動車AT"
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">区分</label>
+          <select name="category" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+            <% ['四輪','二輪','原付','なし'].forEach(c => { %><option value="<%= c %>"><%= c %></option><% }) %>
+          </select>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">並び順</label>
+          <input type="number" name="sort_order" value="0" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <button type="submit" class="btn btn-primary">追加する</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

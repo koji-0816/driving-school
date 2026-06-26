@@ -61,7 +61,7 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // 部屋追加
 router.post('/:id/rooms', (req: Request, res: Response) => {
-  const { room_name, capacity, status, note } = req.body;
+  const { room_name, capacity, over_capacity, status, note } = req.body;
   const db = getDb();
   try {
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(req.params.id) as any;
@@ -72,7 +72,7 @@ router.post('/:id/rooms', (req: Request, res: Response) => {
       return res.render('accommodation/detail', { accommodation, rooms, error: '部屋名は必須です' });
     }
 
-    db.prepare(SQL_ROOM_INSERT).run(req.params.id, room_name, capacity||1, status||'使用可', note||null);
+    db.prepare(SQL_ROOM_INSERT).run(req.params.id, room_name, capacity||1, Number(over_capacity)||0, status||'使用可', note||null);
   } finally {
     db.close();
   }
@@ -94,7 +94,7 @@ router.get('/:id/rooms/:rid/edit', (req: Request, res: Response) => {
 
 // 部屋更新
 router.post('/:id/rooms/:rid/edit', (req: Request, res: Response) => {
-  const { room_name, capacity, status, note } = req.body;
+  const { room_name, capacity, over_capacity, status, note } = req.body;
   const db = getDb();
   try {
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(req.params.id) as any;
@@ -107,7 +107,7 @@ router.post('/:id/rooms/:rid/edit', (req: Request, res: Response) => {
 
     // 変更差分を記録してからUPDATE（UPDATEの補完設計）
     const changes: Record<string, { from: unknown; to: unknown }> = {};
-    const after = { room_name, capacity: Number(capacity)||1, status: status||'使用可', note: note||null };
+    const after = { room_name, capacity: Number(capacity)||1, over_capacity: Number(over_capacity)||0, status: status||'使用可', note: note||null };
     for (const key of Object.keys(after) as (keyof typeof after)[]) {
       if (String(before[key] ?? '') !== String(after[key] ?? '')) {
         changes[key] = { from: before[key], to: after[key] };
@@ -118,7 +118,7 @@ router.post('/:id/rooms/:rid/edit', (req: Request, res: Response) => {
         .run('rooms', req.params.rid, JSON.stringify(changes));
     }
 
-    db.prepare(SQL_ROOM_UPDATE).run(room_name, capacity||1, status||'使用可', note||null, req.params.rid);
+    db.prepare(SQL_ROOM_UPDATE).run(room_name, capacity||1, Number(over_capacity)||0, status||'使用可', note||null, req.params.rid);
   } finally {
     db.close();
   }

@@ -26,6 +26,17 @@
                  style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
         </div>
         <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">教習生番号</label>
+          <input type="text" name="student_no" value="<%= student ? student.student_no || '' : '' %>"
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+          <div class="text-muted" style="margin-top:3px">期首にリセットされるため重複可（内部IDとは別）</div>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">生年月日</label>
+          <input type="date" name="birth_date" value="<%= student ? student.birth_date || '' : '' %>"
+                 style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
+        </div>
+        <div>
           <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">電話番号</label>
           <input type="text" name="phone" value="<%= student ? student.phone || '' : '' %>"
                  style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
@@ -76,21 +87,9 @@
         </div>
       </div>
 
-      <!-- 教習生情報 -->
+      <!-- 仮免・予約経路 -->
       <div style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
-        <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">教習生情報</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div>
-            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">教習生番号</label>
-            <input type="text" name="student_no" value="<%= student ? student.student_no || '' : '' %>"
-                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
-            <div class="text-muted" style="margin-top:3px">期首にリセットされるため重複可（内部IDとは別）</div>
-          </div>
-          <div>
-            <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">生年月日</label>
-            <input type="date" name="birth_date" value="<%= student ? student.birth_date || '' : '' %>"
-                   style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">
-          </div>
           <div>
             <label style="display:block;font-size:12px;color:#555;margin-bottom:4px">仮免取得日</label>
             <input type="date" name="provisional_acquired_date" value="<%= student ? student.provisional_acquired_date || '' : '' %>"
@@ -112,13 +111,20 @@
       <div style="border-top:1px solid #f0f2f5;padding-top:16px;margin-bottom:16px">
         <div style="font-size:12px;font-weight:bold;color:#888;margin-bottom:12px">所持免許</div>
         <% if (heldLicenses && heldLicenses.length > 0) { %>
-          <div style="margin-bottom:12px">
+          <div style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px">
             <% for(const h of heldLicenses) { %>
-              <span class="badge badge-blue" style="margin-right:6px">
-                <%= h.license_name %><% if(h.acquired_date) { %>（取得 <%= h.acquired_date %>）<% } %>
-              </span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="badge badge-blue">
+                  <%= h.license_name %><% if(h.acquired_date) { %>（取得 <%= h.acquired_date %>）<% } %>
+                </span>
+                <% if (student) { %>
+                <button type="button" class="btn btn-secondary" style="font-size:11px;padding:2px 8px"
+                  onclick="if(confirm('この所持免許を取り消します。よろしいですか？（記録は残ります）')){var f=document.createElement('form');f.method='post';f.action='/students/<%= student.id %>/held-license/<%= h.id %>/cancel';document.body.appendChild(f);f.submit();}">取消</button>
+                <% } %>
+              </div>
             <% } %>
           </div>
+          <div class="text-muted" style="font-size:11px;margin-bottom:10px">誤登録は取消してから正しいものを下で追加してください（取消・追加とも履歴に残ります）</div>
         <% } %>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
           <div>

@@ -79,6 +79,11 @@ router.get('/admin/student-lessons/:studentId', (req: Request, res: Response) =>
 router.post('/admin/slots', (req: Request, res: Response) => {
   const { slot_date, start_time, end_time, instructor_id, facility_id, lesson_type, license_type, max_students,
           lesson_master_id, student_id } = req.body;
+  // 教習生は複数登録可（同一枠に複数 reservation）。配列・単一どちらでも受ける
+  const sids = [...new Set(
+    (Array.isArray(student_id) ? student_id : (student_id ? [student_id] : []))
+      .map((v: unknown) => String(v)).filter((s: string) => s)
+  )];
   const db = getDb();
   try {
     const rerender = (errMsg: string) => {
@@ -104,14 +109,15 @@ router.post('/admin/slots', (req: Request, res: Response) => {
       return rerender(instrDup ? 'この教官はすでに同時間帯に枠があります' : 'この設備はすでに同時間帯に割当済みです（ダブルブッキング）');
     }
 
-    // 受講済み教習は割当不可（buildCurriculumProgress の completed を弾く。plan有り生徒はplan課程で判定）
-    if (student_id && lesson_master_id) {
-      const stu = db.prepare('SELECT license_type FROM students WHERE id = ?').get(student_id) as { license_type: string } | undefined;
-      if (stu) {
-        const progress = buildCurriculumProgress(db, String(student_id), stu.license_type);
+    // 受講済み教習は割当不可（各生徒に適用。plan有り生徒はplan課程で判定）
+    if (lesson_master_id && sids.length > 0) {
+      for (const sid of sids) {
+        const stu = db.prepare('SELECT name, license_type FROM students WHERE id = ?').get(sid) as { name: string; license_type: string } | undefined;
+        if (!stu) continue;
+        const progress = buildCurriculumProgress(db, sid, stu.license_type);
         const target = progress.find(p => p.lesson.id === Number(lesson_master_id));
         if (target && target.status === 'completed') {
-          return rerender('指定された教習は受講済みのため割当できません');
+          return rerender(`${stu.name} さんは指定教習が受講済みのため割当できません`);
         }
       }
     }
@@ -121,10 +127,11 @@ router.post('/admin/slots', (req: Request, res: Response) => {
       VALUES (?,?,?,?,?,?,?,?,?)
     `).run(slot_date, start_time, end_time, instructor_id, facility_id||null, lesson_type, license_type, max_students||1, lesson_master_id||null);
 
-    // 教習生を指定した場合は予約も作成（枠に紐付け）
-    if (student_id) {
-      db.prepare(`INSERT INTO reservations (slot_id, student_id, stage, status) VALUES (?,?,?, '予約済')`)
-        .run(Number(result.lastInsertRowid), student_id, '第一段階');
+    // 教習生を指定した場合は予約も作成（定員まで・複数可）
+    const cap = Number(max_students) || 1;
+    const insRes = db.prepare(`INSERT INTO reservations (slot_id, student_id, stage, status) VALUES (?,?,?, '予約済')`);
+    for (const sid of sids.slice(0, cap)) {
+      insRes.run(Number(result.lastInsertRowid), sid, '第一段階');
     }
 
     res.redirect(`/reservations/admin?date=${slot_date}`);
