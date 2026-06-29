@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/schema';
 import { promoteWaitlist } from './waitlist';
-import { buildCurriculumProgress } from '../db/queries';
+import { buildCurriculumProgress, SQL_BOOKING_CANCEL_INSERT } from '../db/queries';
 
 const router = Router();
 
@@ -16,6 +16,7 @@ function loadAdminSlots(db: ReturnType<typeof getDb>, date: string, instructorId
     LEFT JOIN facilities f ON s.facility_id = f.id
     LEFT JOIN lesson_master lm ON s.lesson_master_id = lm.id
     LEFT JOIN reservations r ON r.slot_id = s.id AND r.status = '予約済'
+      AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
     WHERE s.slot_date = ?`;
   const params: string[] = [date];
   if (instructorId) { sql += ' AND s.instructor_id = ?'; params.push(instructorId); }
@@ -29,6 +30,7 @@ function loadAdminSlots(db: ReturnType<typeof getDb>, date: string, instructorId
     JOIN students st ON r.student_id = st.id
     JOIN slots s ON r.slot_id = s.id
     WHERE r.status = '予約済' AND s.slot_date = ?
+      AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
     ORDER BY st.name
   `).all(date) as { slot_id: number; student_id: number; student_name: string; student_no: string | null }[];
 
@@ -172,6 +174,7 @@ router.get('/book/:studentId', (req: Request, res: Response) => {
       LEFT JOIN facilities f ON sl.facility_id = f.id
       LEFT JOIN lesson_master lm ON sl.lesson_master_id = lm.id
       LEFT JOIN reservations r ON r.slot_id = sl.id AND r.status = '予約済'
+        AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
       WHERE sl.slot_date >= ? AND sl.slot_date < date(?, '+7 days')
         AND sl.license_type = ? AND sl.status = '受付中'
       GROUP BY sl.id ORDER BY sl.slot_date, sl.start_time
@@ -180,6 +183,7 @@ router.get('/book/:studentId', (req: Request, res: Response) => {
     const myReservations = db.prepare(`
       SELECT r.slot_id FROM reservations r JOIN slots sl ON r.slot_id = sl.id
       WHERE r.student_id = ? AND r.status = '予約済' AND sl.slot_date >= ?
+        AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
     `).all(req.params.studentId, today) as { slot_id: number }[];
 
     res.render('reservations/book', { student, slots, fromDate, today, mySlotIds: myReservations.map(r => r.slot_id) });
@@ -196,6 +200,7 @@ router.post('/book/:studentId', (req: Request, res: Response) => {
     const slot = db.prepare(`
       SELECT s.*, COUNT(r.id) as reserved_count FROM slots s
       LEFT JOIN reservations r ON r.slot_id = s.id AND r.status = '予約済'
+        AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
       WHERE s.id = ? GROUP BY s.id
     `).get(slot_id) as { max_students: number; reserved_count: number; status: string } | undefined;
 
@@ -207,6 +212,7 @@ router.post('/book/:studentId', (req: Request, res: Response) => {
       SELECT r.id FROM reservations r JOIN slots sl ON r.slot_id = sl.id
       WHERE r.student_id = ? AND sl.slot_date=(SELECT slot_date FROM slots WHERE id=?)
         AND sl.start_time=(SELECT start_time FROM slots WHERE id=?) AND r.status='予約済'
+        AND NOT EXISTS (SELECT 1 FROM reservation_cancellations rc WHERE rc.reservation_id = r.id)
     `).get(req.params.studentId, slot_id, slot_id);
 
     if (dup) {
@@ -225,9 +231,15 @@ router.post('/cancel/:reservationId', (req: Request, res: Response) => {
   const { student_id, date } = req.body;
   const db = getDb();
   try {
-    // キャンセルはINSERTではなくUPDATEを使用（予約IDとの紐付きを維持するため）
-    const reservation = db.prepare(`SELECT slot_id FROM reservations WHERE id=? AND student_id=?`).get(req.params.reservationId, student_id) as { slot_id: number } | undefined;
-    db.prepare(`UPDATE reservations SET status='キャンセル' WHERE id=? AND student_id=?`).run(req.params.reservationId, student_id);
+    // 取消イベントをreservation_cancellationsにINSERT（UPDATEしない）
+    const reservation = db.prepare(`
+      SELECT r.slot_id FROM reservations r
+      LEFT JOIN reservation_cancellations c ON c.reservation_id = r.id
+      WHERE r.id=? AND r.student_id=? AND c.id IS NULL AND r.status <> 'キャンセル'
+    `).get(req.params.reservationId, student_id) as { slot_id: number } | undefined;
+    if (reservation) {
+      db.prepare(SQL_BOOKING_CANCEL_INSERT).run(req.params.reservationId, student_id);
+    }
     const slotId = reservation?.slot_id;
     res.redirect(`/reservations/book/${student_id}?from=${date}`);
     if (slotId) promoteWaitlist(slotId);
