@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/schema';
-import { promoteWaitlist } from './waitlist';
-import { buildCurriculumProgress, SQL_BOOKING_CANCEL_INSERT } from '../db/queries';
+import { buildCurriculumProgress, SQL_BOOKING_CANCEL_INSERT, promoteWaitlist } from '../db/queries';
 
 const router = Router();
 
@@ -242,7 +241,7 @@ router.post('/cancel/:reservationId', (req: Request, res: Response) => {
     }
     const slotId = reservation?.slot_id;
     res.redirect(`/reservations/book/${student_id}?from=${date}`);
-    if (slotId) promoteWaitlist(slotId);
+    if (slotId) promoteWaitlist(db, slotId);
   } finally {
     db.close();
   }

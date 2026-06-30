@@ -760,6 +760,57 @@ export function logStudentEvent(studentId: number | string, eventType: string, d
   }
 }
 
+// ────────────────────────────────────────────────────────────
+// キャンセル待ち（waitlist / waitlist_events）
+//   有効なキャンセル待ち = waitlist_events が存在しない行
+//   新旧両対応：旧データは waitlist.status='待機中' / 新データは waitlist_events で判定
+// ────────────────────────────────────────────────────────────
+
+/** waitlist_events INSERT（取消・繰り上がりイベントの記録）*/
+export const SQL_WAITLIST_EVENT_INSERT = `
+  INSERT INTO waitlist_events (waitlist_id, event_type) VALUES (?, ?)
+`;
+
+/** 有効なキャンセル待ち（slot_id 指定なし・新旧両対応） */
+export const SQL_WAITLIST_ACTIVE = `
+  SELECT w.* FROM waitlist w
+  LEFT JOIN waitlist_events e ON e.waitlist_id = w.id
+  WHERE e.id IS NULL AND w.status = '待機中'
+  ORDER BY w.created_at
+`;
+
+/** 有効な予約数カウント（reservation_cancellations 対応版）*/
+export const SQL_WAITLIST_RESERVED_COUNT = `
+  SELECT COUNT(*) as c FROM reservations r
+  LEFT JOIN reservation_cancellations rc ON rc.reservation_id = r.id
+  WHERE r.slot_id = ? AND r.status = '予約済' AND rc.id IS NULL
+`;
+
+/**
+ * キャンセル発生時に次の待機者を繰り上げる。
+ * db を引数で受け取る（呼び出し元の db を共有）。
+ */
+export function promoteWaitlist(db: ReturnType<typeof getDb>, slotId: number): void {
+  const next = db.prepare(`
+    SELECT w.* FROM waitlist w
+    LEFT JOIN waitlist_events e ON e.waitlist_id = w.id
+    WHERE w.slot_id = ? AND e.id IS NULL AND w.status = '待機中'
+    ORDER BY w.created_at LIMIT 1
+  `).get(slotId) as { id: number; student_id: number } | undefined;
+  if (!next) return;
+
+  const slot = db.prepare('SELECT * FROM slots WHERE id = ?').get(slotId) as any;
+  const { c: reserved } = db.prepare(SQL_WAITLIST_RESERVED_COUNT).get(slotId) as { c: number };
+
+  if (reserved < slot.max_students) {
+    db.prepare(`INSERT INTO reservations (slot_id, student_id, stage, status) VALUES (?,?,'第一段階','予約済')`).run(slotId, next.student_id);
+    db.prepare(SQL_WAITLIST_EVENT_INSERT).run(next.id, 'PROMOTED');
+    db.prepare(`INSERT INTO notifications (student_id, type, title, message) VALUES (?,?,?,?)`)
+      .run(next.student_id, 'waitlist_promoted', 'キャンセル待ちが繰り上がりました',
+        `${slot.slot_date} ${slot.start_time}〜${slot.end_time} の予約が確定しました`);
+  }
+}
+
 /** 変更差分を検出して edit_logs + student_events に記録 */
 export function recordStudentChanges(
   id: number | string,

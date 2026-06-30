@@ -234,6 +234,15 @@ export function initDb(): void {
         FOREIGN KEY (student_id) REFERENCES students(id)
       );
 
+      -- キャンセル待ちのイベント（INSERT専用・UPDATE禁止＝赤伝）
+      -- 有効なキャンセル待ちは waitlist を本テーブルでLEFT JOINし、イベントが無いもので導出する
+      CREATE TABLE IF NOT EXISTS waitlist_events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        waitlist_id INTEGER NOT NULL REFERENCES waitlist(id),
+        event_type  TEXT NOT NULL,   -- 'CANCELLED' / 'PROMOTED'
+        created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+      );
+
       -- 画面内通知
       CREATE TABLE IF NOT EXISTS notifications (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
